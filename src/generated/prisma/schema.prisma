@@ -1,0 +1,195 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Modello User con collegamento a Role (relazione uno-a-molti)
+// Enum per i ruoli, puoi espanderla
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+  GUEST // Se vuoi un ruolo per utenti non autenticati o con pochi privilegi
+}
+
+// Enum per i tipi di permesso (es. CRUD)
+enum PermissionAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+}
+
+// Enum per le risorse su cui agiscono i permessi
+enum PermissionResource {
+  USER
+  ROLE
+  PERMISSION
+  CLIENT
+  PROPERTY
+  SUBJECT
+  SERVICETYPE
+  SERVICE
+  PAYMENT
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique @db.VarChar(50)
+  description String?          @db.VarChar(255)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  users       User[]
+  permissions RolePermission[] // Relazione molti a molti con i permessi
+}
+
+model Permission {
+  id          String             @id @default(uuid())
+  action      PermissionAction
+  resource    PermissionResource
+  description String?            @db.VarChar(255)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  roles       RolePermission[] // Relazione molti a molti con i ruoli
+
+  @@unique([action, resource]) // Un permesso è unico per azione e risorsa
+}
+
+// Tabella di join esplicita per la relazione molti a molti tra Role e Permission
+model RolePermission {
+  roleId       String
+  permissionId String
+  assignedAt   DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  roleId    String // Chiave esterna per il ruolo
+  role      Role     @relation(fields: [roleId], references: [id])
+
+  services Service[] // Un utente può essere responsabile di più servizi
+}
+
+model Client {
+  id         String     @id @default(cuid())
+  taxId      String     @unique // Corresponds to "Codice Fiscale"
+  vatNumber  String?    @unique // Corresponds to "Partita IVA"
+  firstName  String
+  lastName   String
+  email      String     @unique
+  phone      String?
+  subjects   Subject[]
+  properties Property[]
+  services   Service[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  REFUNDED // Aggiunto per chiarezza, se applicabile
+  NO_AMOUNT // Aggiunto per servizi senza importo definito
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  taxId     String   @unique // Corresponds to "Codice Fiscale"
+  firstName String
+  lastName  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  clientId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Property {
+  id            String    @id @default(cuid())
+  cadastralCode String    @unique // Corresponds to "Codice Catastale"
+  address       String
+  city          String
+  client        Client    @relation(fields: [clientId], references: [id])
+  clientId      String
+  services      Service[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model ServiceType {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  services    Service[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Service {
+  id              String           @id @default(cuid())
+  description     String
+  date            DateTime
+  amount          Float
+  paymentStatus   String?
+  client          Client           @relation(fields: [clientId], references: [id])
+  clientId        String
+  property        Property?        @relation(fields: [propertyId], references: [id])
+  propertyId      String?
+  serviceType     ServiceType      @relation(fields: [serviceTypeId], references: [id])
+  serviceTypeId   String
+  // Relazione molti-a-molti con Payment tramite ServicePayment
+  servicePayments ServicePayment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  User   User?   @relation(fields: [userId], references: [id])
+  userId String?
+}
+
+model Payment {
+  id              String           @id @default(cuid())
+  date            DateTime
+  amount          Float
+  isRefund        Boolean
+  status          String
+  method          String // e.g., "Bank Transfer", "Cash", "Credit Card"
+  // Relazione molti-a-molti con Service tramite ServicePayment
+  servicePayments ServicePayment[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+// Tabella di collegamento per la relazione molti-a-molti tra Service e Payment
+model ServicePayment {
+  service   Service  @relation(fields: [serviceId], references: [id])
+  serviceId String
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  paymentId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Chiave primaria composta per garantire l'unicità del collegamento
+  @@id([serviceId, paymentId])
+}

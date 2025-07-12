@@ -88,6 +88,9 @@ model User {
   updatedAt DateTime @updatedAt
   roleId    String // Chiave esterna per il ruolo
   role      Role     @relation(fields: [roleId], references: [id])
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
+
 
   services Service[] // Un utente può essere responsabile di più servizi
 }

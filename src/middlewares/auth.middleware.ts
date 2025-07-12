@@ -139,3 +139,31 @@ export const hasPermission = (permissionString: string) => { // E.g., "create:us
     });
   };
 };
+
+
+
+export const isAuthenticated = (require2FA: boolean = true) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+
+    if (!token) {
+      return res.status(401).json({ message: 'Missing token' });
+    }
+
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET!) as any;
+
+      // Se il token è temporaneo (solo per OTP) e la rotta richiede 2FA completo, blocca
+      if (require2FA && payload.twoFA === true) {
+        return res.status(403).json({ message: '2FA not verified' });
+      }
+
+      // Salva user info in req.user
+      req.user = payload;
+      next();
+    } catch (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+  };
+};

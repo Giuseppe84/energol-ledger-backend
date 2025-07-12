@@ -3,11 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.login = exports.register = void 0;
+exports.enable2FA = exports.verify2FA = exports.setup2FA = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const _2fa_service_1 = require("./2fa.service");
+const speakeasy_1 = __importDefault(require("speakeasy"));
 dotenv_1.default.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Assicurati che sia nel .env
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
@@ -77,6 +79,11 @@ const login = async (req, res) => {
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Invalid credentials.' });
         }
+        if (user.is2FAEnabled) {
+            // Genera un token temporaneo per completare 2FA
+            const tempToken = jsonwebtoken_1.default.sign({ userId: user.id, twoFA: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
+            return res.status(206).json({ message: '2FA required', tempToken });
+        }
         // Mappa i permessi in un formato più semplice per il token (es. ['READ_USER', 'CREATE_CLIENT'])
         const userPermissions = user.role.permissions.map((rp) => ({
             action: rp.permission.action,
@@ -93,3 +100,51 @@ const login = async (req, res) => {
     }
 };
 exports.login = login;
+const setup2FA = async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Utente non autenticato' });
+    }
+    const userId = req.user.id;
+    const user = await prisma_1.default.user.findUnique({ where: { id: userId } });
+    if (!user)
+        return res.status(404).json({ message: 'User not found' });
+    const { base32, qrCode } = await (0, _2fa_service_1.generate2FASecret)(user.email);
+    // Salva il secret temporaneamente (opzionale: attendi verifica per salvarlo definitivamente)
+    await prisma_1.default.user.update({
+        where: { id: userId },
+        data: { twoFactorSecret: base32 }
+    });
+    res.json({ qrCode });
+};
+exports.setup2FA = setup2FA;
+const verify2FA = async (req, res) => {
+    if (!req.user) {
+        return res.status(401).json({ message: 'Utente non autenticato' });
+    }
+    const userId = req.user.id;
+    const { token } = req.body;
+    const user = await prisma_1.default.user.findUnique({ where: { id: userId } });
+    if (!user || !user.twoFactorSecret)
+        return res.status(400).json({ message: 'No secret found' });
+    const isValid = (0, _2fa_service_1.verify2FAToken)(user.twoFactorSecret, token);
+    if (!isValid)
+        return res.status(401).json({ message: 'Invalid 2FA code' });
+    await prisma_1.default.user.update({
+        where: { id: userId },
+        data: { twoFactorEnabled: true },
+    });
+    res.json({ message: '2FA enabled successfully' });
+};
+exports.verify2FA = verify2FA;
+const enable2FA = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId)
+        return res.status(401).json({ message: 'Non autorizzato' });
+    const secret = speakeasy_1.default.generateSecret();
+    await prisma_1.default.user.update({
+        where: { id: userId },
+        data: { twoFactorSecret: secret.base32 },
+    });
+    res.json({ otpauth_url: secret.otpauth_url });
+};
+exports.enable2FA = enable2FA;

@@ -5,6 +5,9 @@ import jwt from 'jsonwebtoken';
 import prisma from '../utils/prisma';
 import { Prisma } from '@prisma/client';
 import dotenv from 'dotenv';
+import { generate2FASecret, verify2FAToken } from './2fa.service';
+import speakeasy from 'speakeasy';
+
 
 dotenv.config();
 
@@ -14,7 +17,7 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 export const register = async (req: Request, res: Response) => {
   const { name, email, password, roleName } = req.body;
 
-console.log('Registering user:', { name, email, roleName });
+  console.log('Registering user:', { name, email, roleName });
   if (!name || !email || !password || !roleName) {
     return res.status(400).json({ message: 'Name, email, password, and role are required.' });
   }
@@ -87,7 +90,16 @@ export const login = async (req: Request, res: Response) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
+    if ((user as any).is2FAEnabled) {
+      // Genera un token temporaneo per completare 2FA
+      const tempToken = jwt.sign(
+        { userId: user.id, twoFA: true },
+        process.env.JWT_SECRET!,
+        { expiresIn: '5m' }
+      );
 
+      return res.status(206).json({ message: '2FA required', tempToken });
+    }
     // Mappa i permessi in un formato più semplice per il token (es. ['READ_USER', 'CREATE_CLIENT'])
     const userPermissions = user.role.permissions.map(
       (rp: { permission: { action: string; resource: string } }) => ({
@@ -112,3 +124,65 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
+
+
+export const setup2FA = async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Utente non autenticato' });
+  }
+
+  const userId = req.user.id;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  const { base32, qrCode } = await generate2FASecret(user.email);
+
+  // Salva il secret temporaneamente (opzionale: attendi verifica per salvarlo definitivamente)
+  await prisma.user.update({
+    where: { id: userId },
+    data: { twoFactorSecret: base32 }
+  });
+
+  res.json({ qrCode });
+};
+
+
+
+export const verify2FA = async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Utente non autenticato' });
+  }
+
+  const userId = req.user.id;
+  const { token } = req.body;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.twoFactorSecret) return res.status(400).json({ message: 'No secret found' });
+
+  const isValid = verify2FAToken(user.twoFactorSecret, token);
+
+  if (!isValid) return res.status(401).json({ message: 'Invalid 2FA code' });
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { twoFactorEnabled: true },
+  });
+
+  res.json({ message: '2FA enabled successfully' });
+};
+
+export const enable2FA = async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+
+  if (!userId) return res.status(401).json({ message: 'Non autorizzato' });
+
+  const secret = speakeasy.generateSecret();
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { twoFactorSecret: secret.base32 },
+  });
+
+  res.json({ otpauth_url: secret.otpauth_url });
+};
