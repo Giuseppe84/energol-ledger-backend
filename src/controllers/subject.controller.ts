@@ -1,0 +1,105 @@
+// src/controllers/subject.controller.ts
+import { Request, Response } from 'express';
+import prisma from '../utils/prisma';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+
+// Create Subject
+export const createSubject = async (req: Request, res: Response) => {
+  const { taxId, firstName, lastName, clientId } = req.body;
+
+  if (!taxId || !firstName || !lastName || !clientId) {
+    return res.status(400).json({ message: 'All fields (taxId, firstName, lastName, clientId) are required.' });
+  }
+
+  try {
+    const newSubject = await prisma.subject.create({
+      data: {
+        taxId,
+        firstName,
+        lastName,
+        clientId
+      }
+    });
+    res.status(201).json({ message: 'Subject created successfully', subject: newSubject });
+  } catch (error) {
+    console.error('Error creating subject:', error);
+    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+      return res.status(409).json({ message: 'A subject with this taxId already exists.' });
+    }
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get all Subjects
+export const getAllSubjects = async (req: Request, res: Response) => {
+  try {
+    const subjects = await prisma.subject.findMany({
+      include: { client: true } // Optional: include client details
+    });
+    res.status(200).json(subjects);
+  } catch (error) {
+    console.error('Error fetching subjects:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get Subject by ID
+export const getSubjectById = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const subject = await prisma.subject.findUnique({
+      where: { id },
+      include: { client: true } // Optional
+    });
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found.' });
+    }
+    res.status(200).json(subject);
+  } catch (error) {
+    console.error('Error fetching subject:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update Subject
+export const updateSubject = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { taxId, firstName, lastName, clientId } = req.body;
+
+  try {
+    const updatedSubject = await prisma.subject.update({
+      where: { id },
+      data: {
+        taxId,
+        firstName,
+        lastName,
+        clientId
+      }
+    });
+    res.status(200).json({ message: 'Subject updated successfully', subject: updatedSubject });
+  } catch (error) {
+    console.error('Error updating subject:', error);
+    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+      return res.status(409).json({ message: 'A subject with this taxId already exists.' });
+    }
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Delete Subject
+export const deleteSubject = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const subject = await prisma.subject.findUnique({ where: { id } });
+
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found.' });
+    }
+
+    await prisma.subject.delete({ where: { id } });
+    res.status(200).json({ message: 'Subject deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting subject:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

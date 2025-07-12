@@ -1,0 +1,144 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.deleteClient = exports.updateClient = exports.getClientById = exports.getAllClients = exports.createClient = void 0;
+const prisma_1 = __importDefault(require("../utils/prisma"));
+const library_1 = require("@prisma/client/runtime/library");
+const createClient = async (req, res) => {
+    const { firstName, lastName, email, phone, taxId, vatNumber } = req.body;
+    // taxId e email sono ora obbligatori, e abbiamo firstName e lastName al posto di name
+    if (!firstName || !lastName || !email || !taxId) {
+        return res.status(400).json({ message: 'First name, last name, email, and tax ID are required for a client.' });
+    }
+    try {
+        const newClient = await prisma_1.default.client.create({
+            data: {
+                firstName,
+                lastName,
+                email,
+                phone,
+                taxId,
+                vatNumber // vatNumber è opzionale, quindi può essere null/undefined
+            }
+        });
+        res.status(201).json({ message: 'Client created successfully', client: newClient });
+    }
+    catch (error) {
+        console.error('Error creating client:', error);
+        if (error) {
+            // P2002: Unique constraint failed on the fields: `taxId`, `email`, `vatNumber`
+            let message = 'Client with this email already exists.';
+            if (error.meta?.target?.includes('taxId')) {
+                message = 'Client with this Tax ID (Codice Fiscale) already exists.';
+            }
+            else if (error.meta?.target?.includes('vatNumber')) {
+                message = 'Client with this VAT Number (Partita IVA) already exists.';
+            }
+            return res.status(409).json({ message });
+        }
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.createClient = createClient;
+const getAllClients = async (req, res) => {
+    try {
+        const clients = await prisma_1.default.client.findMany({
+            include: {
+                properties: { select: { id: true, address: true, city: true } }, // Includi solo alcuni dettagli
+                services: { select: { id: true, description: true, amount: true } }
+            }
+        });
+        res.status(200).json(clients);
+    }
+    catch (error) {
+        console.error('Error fetching clients:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.getAllClients = getAllClients;
+const getClientById = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const client = await prisma_1.default.client.findUnique({
+            where: { id },
+            include: {
+                properties: true, // Includi tutte le proprietà
+                services: true, // Includi tutti i servizi
+                subjects: true // Includi tutti i soggetti (se la relazione Subject[] era intenzionale per Client, altrimenti rivedila)
+            }
+        });
+        if (!client) {
+            return res.status(404).json({ message: 'Client not found.' });
+        }
+        res.status(200).json(client);
+    }
+    catch (error) {
+        console.error('Error fetching client:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.getClientById = getClientById;
+const updateClient = async (req, res) => {
+    const { id } = req.params;
+    const { firstName, lastName, email, phone, taxId, vatNumber } = req.body;
+    try {
+        const updatedClient = await prisma_1.default.client.update({
+            where: { id },
+            data: {
+                firstName,
+                lastName,
+                email,
+                phone,
+                taxId,
+                vatNumber,
+                updatedAt: new Date()
+            }
+        });
+        res.status(200).json({ message: 'Client updated successfully', client: updatedClient });
+    }
+    catch (error) {
+        console.error('Error updating client:', error);
+        if (error instanceof library_1.PrismaClientKnownRequestError && error.code === 'P2002') {
+            let message = 'Another client with this email already exists.';
+            if (error.meta?.target?.includes('taxId')) {
+                message = 'Another client with this Tax ID (Codice Fiscale) already exists.';
+            }
+            else if (error.meta?.target?.includes('vatNumber')) {
+                message = 'Another client with this VAT Number (Partita IVA) already exists.';
+            }
+            return res.status(409).json({ message });
+        }
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.updateClient = updateClient;
+const deleteClient = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const client = await prisma_1.default.client.findUnique({
+            where: { id },
+            include: {
+                services: { select: { id: true } },
+                properties: { select: { id: true } },
+                // Se un client ha Subject[], dovresti gestire anche questo
+                // subjects: { select: { id: true } }
+            }
+        });
+        if (!client) {
+            return res.status(404).json({ message: 'Client not found.' });
+        }
+        // Controlla e impedisci l'eliminazione se ci sono dipendenze
+        if (client.services.length > 0 || client.properties.length > 0 /* || client.subjects.length > 0 */) {
+            return res.status(400).json({ message: 'Cannot delete client: associated services, properties, or subjects exist. Please reassign or delete them first.' });
+        }
+        await prisma_1.default.client.delete({ where: { id } });
+        res.status(200).json({ message: 'Client deleted successfully' });
+    }
+    catch (error) {
+        console.error('Error deleting client:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.deleteClient = deleteClient;
