@@ -6,8 +6,8 @@ import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-
-
+router.post('/register', register);
+router.post('/login', login);
 
 router.post('/2fa/setup', authenticate, enable2FA);
 router.post('/2fa/verify', authenticate, verify2FA);
