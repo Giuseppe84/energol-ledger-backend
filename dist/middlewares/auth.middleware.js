@@ -3,140 +3,92 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.isAuthenticated = exports.hasPermission = exports.authorizeRole = exports.authenticateToken = void 0;
+exports.hasPermission = exports.authorizeRole = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const prisma_1 = __importDefault(require("../utils/prisma"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const prisma_1 = __importDefault(require("../utils/prisma"));
 dotenv_1.default.config();
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Assicurati che sia nel .env
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // "Bearer TOKEN"
-    if (token == null) {
-        return res.status(401).json({ message: 'Authentication token required.' });
-    }
-    jsonwebtoken_1.default.verify(token, JWT_SECRET, async (err, decoded) => {
-        if (err) {
-            console.error('JWT verification error:', err);
-            return res.status(403).json({ message: 'Invalid or expired token.' });
-        }
-        try {
-            const user = await prisma_1.default.user.findUnique({
-                where: { id: decoded.userId },
-                include: {
-                    role: {
-                        include: {
-                            permissions: {
-                                include: {
-                                    permission: true
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            if (!user || !user.isActive) {
-                return res.status(403).json({ message: 'User not found or inactive.' });
-            }
-            // Mappa i permessi in un formato più semplice (es. ['read:user', 'create:client'])
-            const userPermissions = user.role.permissions.map((rp) => ({
-                action: rp.permission.action,
-                resource: rp.permission.resource
-            }));
-            req.user = {
-                id: user.id,
-                email: user.email,
-                roleId: user.roleId,
-                permissions: userPermissions
-            };
-            next();
-        }
-        catch (dbError) {
-            console.error('Database error during token authentication:', dbError);
-            res.status(500).json({ message: 'Internal server error during authentication.' });
-        }
-    });
-};
-exports.authenticateToken = authenticateToken;
-const authorizeRole = (requiredRoles) => {
-    return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({ message: 'User not authenticated.' }); // Questo non dovrebbe accadere se authenticateToken è prima
-        }
-        // Qui cerchiamo il nome del ruolo dell'utente dal database
-        prisma_1.default.role.findUnique({
-            where: { id: req.user.roleId },
-            select: { name: true }
-        })
-            .then((role) => {
-            if (!role) {
-                return res.status(403).json({ message: 'User role not found.' });
-            }
-            if (requiredRoles.includes(role.name)) {
-                next();
-            }
-            else {
-                res.status(403).json({ message: 'Access denied: Insufficient role permissions.' });
-            }
-        })
-            .catch((error) => {
-            console.error('Error fetching user role for authorization:', error);
-            res.status(500).json({ message: 'Internal server error during authorization.' });
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET)
+    throw new Error("JWT_SECRET is not defined in environment variables.");
+// Middleware principale di autenticazione
+const authenticate = async (req, res, next) => {
+    const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+    if (!token)
+        return res.status(401).json({ message: 'Token missing' });
+    try {
+        const payload = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+        const user = await prisma_1.default.user.findUnique({
+            where: { id: payload.userId },
+            include: {
+                role: {
+                    include: {
+                        permissions: {
+                            include: { permission: true },
+                        },
+                    },
+                },
+            },
         });
+        if (!user || !user.isActive) {
+            return res.status(403).json({ message: 'User not found or inactive.' });
+        }
+        const permissions = user.role.permissions.map((rp) => ({
+            action: rp.permission.action,
+            resource: rp.permission.resource,
+        }));
+        req.user = {
+            id: user.id,
+            email: user.email,
+            roleId: user.roleId,
+            permissions,
+        };
+        // Se token è solo per OTP e 2FA è richiesto, blocca l'accesso
+        if (payload.twoFA === true && req.route.meta?.require2FA) {
+            return res.status(403).json({ message: '2FA not verified' });
+        }
+        next();
+    }
+    catch (err) {
+        console.error('Token verification failed:', err);
+        return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+};
+exports.authenticate = authenticate;
+// Middleware per autorizzare il ruolo (es. ['Admin', 'Manager'])
+const authorizeRole = (allowedRoles) => {
+    return async (req, res, next) => {
+        if (!req.user)
+            return res.status(401).json({ message: 'Not authenticated' });
+        const role = await prisma_1.default.role.findUnique({
+            where: { id: req.user.roleId },
+            select: { name: true },
+        });
+        if (!role)
+            return res.status(403).json({ message: 'Role not found' });
+        if (!allowedRoles.includes(role.name)) {
+            return res.status(403).json({ message: 'Access denied: role not authorized' });
+        }
+        next();
     };
 };
 exports.authorizeRole = authorizeRole;
-const hasPermission = (permissionString) => {
-    return (req, res, next) => {
-        if (!req.user || !req.user.permissions) {
-            return res.status(401).json({ message: 'User not authenticated or permissions not loaded.' });
-        }
-        const [requiredAction, requiredResource] = permissionString.split(':');
-        // Verifica se l'utente ha il permesso specifico o è un ADMIN (che di solito ha tutti i permessi)
-        const hasSpecificPermission = req.user.permissions.some(p => p.action === requiredAction.toUpperCase() && p.resource === requiredResource.toUpperCase());
-        // Controlla se l'utente ha il ruolo di ADMIN (per bypassare i permessi specifici se è un super utente)
-        prisma_1.default.role.findUnique({
+// Middleware per controllare permesso (es. 'create:user')
+const hasPermission = (permission) => {
+    return async (req, res, next) => {
+        if (!req.user)
+            return res.status(401).json({ message: 'Not authenticated' });
+        const [action, resource] = permission.split(':');
+        const hasPerm = req.user.permissions.some((p) => p.action.toLowerCase() === action.toLowerCase() &&
+            p.resource.toLowerCase() === resource.toLowerCase());
+        const role = await prisma_1.default.role.findUnique({
             where: { id: req.user.roleId },
-            select: { name: true }
-        })
-            .then((role) => {
-            if (!role) {
-                return res.status(403).json({ message: 'User role not found for permission check.' });
-            }
-            if (role.name === 'Admin' || hasSpecificPermission) {
-                next();
-            }
-            else {
-                res.status(403).json({ message: `Access denied: Missing '${permissionString}' permission.` });
-            }
-        })
-            .catch((error) => {
-            console.error('Error fetching role for permission check:', error);
-            res.status(500).json({ message: 'Internal server error during permission check.' });
+            select: { name: true },
         });
+        if (!hasPerm && role?.name !== 'Admin') {
+            return res.status(403).json({ message: `Missing permission: ${permission}` });
+        }
+        next();
     };
 };
 exports.hasPermission = hasPermission;
-const isAuthenticated = (require2FA = true) => {
-    return (req, res, next) => {
-        const authHeader = req.headers.authorization;
-        const token = authHeader?.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ message: 'Missing token' });
-        }
-        try {
-            const payload = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
-            // Se il token è temporaneo (solo per OTP) e la rotta richiede 2FA completo, blocca
-            if (require2FA && payload.twoFA === true) {
-                return res.status(403).json({ message: '2FA not verified' });
-            }
-            // Salva user info in req.user
-            req.user = payload;
-            next();
-        }
-        catch (err) {
-            return res.status(403).json({ message: 'Invalid or expired token' });
-        }
-    };
-};
-exports.isAuthenticated = isAuthenticated;

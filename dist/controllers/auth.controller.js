@@ -3,14 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.enable2FA = exports.verify2FA = exports.setup2FA = exports.login = exports.register = void 0;
+exports.create2FASecret = exports.verify2FAToken = exports.disable2FA = exports.generate2FASecret = exports.get2FAStatus = exports.enable2FA = exports.verify2FA = exports.setup2FA = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const _2fa_service_1 = require("./2fa.service");
 const speakeasy_1 = __importDefault(require("speakeasy"));
+const qrcode_1 = __importDefault(require("qrcode"));
 dotenv_1.default.config();
+const APP_NAME = process.env.APP_NAME || 'Energol App';
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key'; // Assicurati che sia nel .env
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const register = async (req, res) => {
@@ -108,12 +109,17 @@ const setup2FA = async (req, res) => {
     const user = await prisma_1.default.user.findUnique({ where: { id: userId } });
     if (!user)
         return res.status(404).json({ message: 'User not found' });
-    const { base32, qrCode } = await (0, _2fa_service_1.generate2FASecret)(user.email);
-    // Salva il secret temporaneamente (opzionale: attendi verifica per salvarlo definitivamente)
+    const issuer = process.env.APP_NAME || 'Energol App';
+    // Genera il segreto e il QR code passando i 3 parametri richiesti
+    const { base32, qrCode } = await (0, exports.create2FASecret)(user.email, userId);
+    // Salva il secret nel DB
     await prisma_1.default.user.update({
         where: { id: userId },
-        data: { twoFactorSecret: base32 }
+        data: {
+            twoFactorSecret: base32,
+        },
     });
+    // Restituisce il QR code da scansionare
     res.json({ qrCode });
 };
 exports.setup2FA = setup2FA;
@@ -126,7 +132,7 @@ const verify2FA = async (req, res) => {
     const user = await prisma_1.default.user.findUnique({ where: { id: userId } });
     if (!user || !user.twoFactorSecret)
         return res.status(400).json({ message: 'No secret found' });
-    const isValid = (0, _2fa_service_1.verify2FAToken)(user.twoFactorSecret, token);
+    const isValid = (0, exports.verify2FAToken)(user.twoFactorSecret, token);
     if (!isValid)
         return res.status(401).json({ message: 'Invalid 2FA code' });
     await prisma_1.default.user.update({
@@ -148,3 +154,71 @@ const enable2FA = async (req, res) => {
     res.json({ otpauth_url: secret.otpauth_url });
 };
 exports.enable2FA = enable2FA;
+const get2FAStatus = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId)
+        return res.sendStatus(401);
+    const user = await prisma_1.default.user.findUnique({
+        where: { id: userId },
+        select: { twoFactorEnabled: true },
+    });
+    return res.json({ enabled: user?.twoFactorEnabled || false });
+};
+exports.get2FAStatus = get2FAStatus;
+const generate2FASecret = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId)
+        return res.sendStatus(401);
+    const issuer = process.env.APP_NAME || 'Energol App';
+    const secret = speakeasy_1.default.generateSecret({
+        name: `${issuer} (${req.user?.email})`,
+        issuer,
+    });
+    await prisma_1.default.user.update({
+        where: { id: userId },
+        data: {
+            twoFactorSecret: secret.base32,
+        },
+    });
+    const otpauth = secret.otpauth_url;
+    const qrCode = await qrcode_1.default.toDataURL(otpauth);
+    return res.json({ qrCode });
+};
+exports.generate2FASecret = generate2FASecret;
+const disable2FA = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId)
+        return res.sendStatus(401);
+    await prisma_1.default.user.update({
+        where: { id: userId },
+        data: {
+            twoFactorSecret: null,
+            twoFactorEnabled: false,
+        },
+    });
+    return res.json({ message: "2FA disattivata" });
+};
+exports.disable2FA = disable2FA;
+const verify2FAToken = (secret, token) => {
+    return speakeasy_1.default.totp.verify({
+        secret,
+        encoding: 'base32',
+        token,
+        window: 1,
+    });
+};
+exports.verify2FAToken = verify2FAToken;
+const create2FASecret = async (name, userId) => {
+    const issuer = process.env.APP_NAME || 'Energol App';
+    const secret = speakeasy_1.default.generateSecret({
+        name: `${issuer} (${name})`,
+        issuer,
+    });
+    const qrCode = await qrcode_1.default.toDataURL(secret.otpauth_url);
+    return {
+        base32: secret.base32,
+        otpauth_url: secret.otpauth_url,
+        qrCode,
+    };
+};
+exports.create2FASecret = create2FASecret;
