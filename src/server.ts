@@ -22,10 +22,15 @@ import paymentRoutes from './routes/payment.routes';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+
+app.use(cors({
+  origin: 'http://localhost:5173', // O l'IP/hostname del frontend esatto
+  credentials: true
+}));
 app.use(cookieParser());
 // Middlewares globali
 app.use(express.json()); // Per parsare il body delle richieste JSON
-app.use(cors()); // Per gestire le richieste cross-origin
+
 app.use(helmet()); // Per aggiungere header di sicurezza
 app.use(express.urlencoded({ extended: true })); // Per parsare i dati URL-encoded
 // Rotte API

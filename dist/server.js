@@ -24,10 +24,13 @@ const service_routes_1 = __importDefault(require("./routes/service.routes"));
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
+app.use((0, cors_1.default)({
+    origin: 'http://localhost:5173', // O l'IP/hostname del frontend esatto
+    credentials: true
+}));
 app.use((0, cookie_parser_1.default)());
 // Middlewares globali
 app.use(express_1.default.json()); // Per parsare il body delle richieste JSON
-app.use((0, cors_1.default)()); // Per gestire le richieste cross-origin
 app.use((0, helmet_1.default)()); // Per aggiungere header di sicurezza
 app.use(express_1.default.urlencoded({ extended: true })); // Per parsare i dati URL-encoded
 // Rotte API
