@@ -43,14 +43,15 @@ const authenticate = async (req, res, next) => {
             roleId: user.roleId,
             permissions,
         };
-        // Se token è solo per OTP e 2FA è richiesto, blocca l'accesso
-        if (payload.twoFA === true && req.route.meta?.require2FA) {
+        // Protezione extra contro route non standard
+        const require2FA = req.route?.meta?.require2FA;
+        if (payload.twoFA === true && require2FA) {
             return res.status(403).json({ message: '2FA not verified' });
         }
         next();
     }
     catch (err) {
-        console.error('Token verification failed:', err);
+        console.error('Token verification or DB error:', err);
         return res.status(403).json({ message: 'Invalid or expired token' });
     }
 };
