@@ -196,17 +196,21 @@ export const enable2FA = async (req: Request, res: Response) => {
 };
 
 export const get2FAStatus = async (req: Request, res: Response) => {
-  const userId = req.user?.id;
-  if (!userId) return res.sendStatus(401);
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.sendStatus(401);
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { twoFactorEnabled: true },
-  });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { twoFactorEnabled: true },
+    });
 
-  return res.json({ enabled: user?.twoFactorEnabled || false });
+    return res.json({ enabled: user?.twoFactorEnabled || false });
+  } catch (error) {
+    console.error("Errore in get2FAStatus:", error);
+    return res.status(500).json({ message: "Errore interno del server" });
+  }
 };
-
 
 export const generate2FASecret = async (req: Request, res: Response) => {
   const userId = req.user?.id;

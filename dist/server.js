@@ -10,6 +10,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const prisma_1 = __importDefault(require("./utils/prisma"));
+const cookie_parser_1 = __importDefault(require("cookie-parser"));
 // Importa tutte le tue rotte
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const user_routes_1 = __importDefault(require("./routes/user.routes"));
@@ -23,6 +24,7 @@ const service_routes_1 = __importDefault(require("./routes/service.routes"));
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
+app.use((0, cookie_parser_1.default)());
 // Middlewares globali
 app.use(express_1.default.json()); // Per parsare il body delle richieste JSON
 app.use((0, cors_1.default)()); // Per gestire le richieste cross-origin

@@ -21,6 +21,7 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.x",
     "dotenv": "^16.x",
     "express": "^4.x",
@@ -30,6 +31,7 @@
     "speakeasy": "^2.0.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.x",
     "@types/express": "^4.x",
     "@types/node": "^20.x",

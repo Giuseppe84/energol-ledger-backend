@@ -6,7 +6,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import prisma from './utils/prisma';
-
+import cookieParser from 'cookie-parser';
 // Importa tutte le tue rotte
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
@@ -22,6 +22,7 @@ import paymentRoutes from './routes/payment.routes';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use(cookieParser());
 // Middlewares globali
 app.use(express.json()); // Per parsare il body delle richieste JSON
 app.use(cors()); // Per gestire le richieste cross-origin
