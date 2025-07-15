@@ -15,8 +15,8 @@ import permissionRoutes from './routes/permission.routes'; // <-- Nuova
 import clientRoutes from './routes/client.routes';
 import propertyRoutes from './routes/property.routes';
 import subjectRoutes from './routes/subject.routes';
-import serviceTypeRoutes from './routes/serviceType.routes';
 import serviceRoutes from './routes/service.routes';
+import workRoutes from './routes/work.routes';
 import paymentRoutes from './routes/payment.routes';
 
 const app = express();
@@ -48,8 +48,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/subjects', subjectRoutes);
-app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/work', workRoutes);
 app.use('/api/payments', paymentRoutes);
 
 // Gestione degli errori (catch-all)

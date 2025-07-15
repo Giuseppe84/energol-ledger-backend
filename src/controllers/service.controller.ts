@@ -1,16 +1,48 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import { Prisma } from '@prisma/client';
 
-// Recupera tutti i servizi
-export const getAllServices = async (_req: Request, res: Response) => {
+export const createService = async (req: Request, res: Response) => {
+  const { name, description } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ message: 'Service name is required.' });
+  }
+
+  try {
+    const newService = await prisma.service.create({
+      data: {
+        name,
+        description,
+      },
+    });
+    res.status(201).json({ message: 'Service created successfully', service: newService });
+  } catch (error) {
+    console.error('Error creating service:', error);
+    if ((error as any).code === 'P2002') {
+      return res.status(409).json({ message: 'Service with this name already exists.' });
+    }
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getAllServices = async (req: Request, res: Response) => {
   try {
     const services = await prisma.service.findMany({
       include: {
-        client: { select: { id: true, firstName: true, lastName: true, email: true } },
-        property: { select: { id: true, address: true, city: true } },
-        serviceType: { select: { id: true, name: true } },
-        subject: { select: { id: true, taxId: true, firstName: true, lastName: true } }
-      }
+        works: {
+          select: {
+            id: true,
+            description: true,
+            amount: true,
+            date: true,
+            paymentStatus: true,
+            clientId: true,
+            propertyId: true,
+            userId: true,
+          },
+        },
+      },
     });
     res.status(200).json(services);
   } catch (error) {
@@ -19,70 +51,25 @@ export const getAllServices = async (_req: Request, res: Response) => {
   }
 };
 
-// Crea un nuovo servizio
-export const createService = async (req: Request, res: Response) => {
-  const { description, date, amount, clientId, propertyId, serviceTypeId, subjectId } = req.body;
-
-  if (!description || !date || !amount || !clientId || !serviceTypeId) {
-    return res.status(400).json({ message: 'Description, date, amount, clientId, and serviceTypeId are required.' });
-  }
-
-  try {
-    const client = await prisma.client.findUnique({ where: { id: clientId } });
-    if (!client) return res.status(404).json({ message: 'Client not found.' });
-
-    const serviceType = await prisma.serviceType.findUnique({ where: { id: serviceTypeId } });
-    if (!serviceType) return res.status(404).json({ message: 'Service type not found.' });
-
-    if (propertyId) {
-      const property = await prisma.property.findUnique({ where: { id: propertyId } });
-      if (!property) return res.status(404).json({ message: 'Property not found.' });
-    }
-
-    if (subjectId) {
-      const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
-      if (!subject) return res.status(404).json({ message: 'Subject not found.' });
-    }
-
-    const newService = await prisma.service.create({
-      data: {
-        description,
-        date: new Date(date),
-        amount: Number(amount),
-        client: { connect: { id: clientId } },
-        property: propertyId ? { connect: { id: propertyId } } : undefined,
-        serviceType: { connect: { id: serviceTypeId } },
-        subject: { connect: { id: subjectId } } ,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      include: {
-        client: true,
-        property: true,
-        serviceType: true,
-        subject: true,
-      }
-    });
-
-    res.status(201).json({ message: 'Service created successfully', service: newService });
-  } catch (error) {
-    console.error('Error creating service:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-// Recupera un servizio per ID
 export const getServiceById = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const service = await prisma.service.findUnique({
       where: { id },
       include: {
-        client: true,
-        property: true,
-        serviceType: true,
-        subject: true,
-      }
+        works: {
+          select: {
+            id: true,
+            description: true,
+            amount: true,
+            date: true,
+            paymentStatus: true,
+            clientId: true,
+            propertyId: true,
+            userId: true,
+          },
+        },
+      },
     });
     if (!service) {
       return res.status(404).json({ message: 'Service not found.' });
@@ -94,77 +81,47 @@ export const getServiceById = async (req: Request, res: Response) => {
   }
 };
 
-// Aggiorna un servizio
 export const updateService = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { description, date, amount, clientId, propertyId, serviceTypeId, subjectId } = req.body;
+  const { name, description } = req.body;
 
   try {
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    if (description !== undefined) updateData.description = description;
-    if (date !== undefined) updateData.date = new Date(date);
-    if (amount !== undefined) updateData.amount = Number(amount);
-
-    if (clientId !== undefined) {
-      const clientExists = await prisma.client.findUnique({ where: { id: clientId } });
-      if (!clientExists) return res.status(404).json({ message: 'Client not found.' });
-      updateData.client = { connect: { id: clientId } };
-    }
-
-    if (propertyId !== undefined) {
-      if (propertyId === null) {
-        updateData.property = { disconnect: true };
-      } else {
-        const propertyExists = await prisma.property.findUnique({ where: { id: propertyId } });
-        if (!propertyExists) return res.status(404).json({ message: 'Property not found.' });
-        updateData.property = { connect: { id: propertyId } };
-      }
-    }
-
-    if (serviceTypeId !== undefined) {
-      const serviceTypeExists = await prisma.serviceType.findUnique({ where: { id: serviceTypeId } });
-      if (!serviceTypeExists) return res.status(404).json({ message: 'Service type not found.' });
-      updateData.serviceType = { connect: { id: serviceTypeId } };
-    }
-
-    if (subjectId !== undefined) {
-      if (subjectId === null) {
-        updateData.subject = { disconnect: true };
-      } else {
-        const subjectExists = await prisma.subject.findUnique({ where: { id: subjectId } });
-        if (!subjectExists) return res.status(404).json({ message: 'Subject not found.' });
-        updateData.subject = { connect: { id: subjectId } };
-      }
-    }
-
     const updatedService = await prisma.service.update({
       where: { id },
-      data: updateData,
-      include: {
-        client: true,
-        property: true,
-        serviceType: true,
-        subject: true,
-      }
+      data: {
+        name,
+        description,
+        updatedAt: new Date(),
+      },
     });
-
     res.status(200).json({ message: 'Service updated successfully', service: updatedService });
   } catch (error) {
     console.error('Error updating service:', error);
     if ((error as any).code === 'P2002') {
-      return res.status(409).json({ message: 'A service with these data already exists.' });
+      return res.status(409).json({ message: 'Service with this name already exists.' });
     }
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-// Elimina un servizio
 export const deleteService = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
+    const service = await prisma.service.findUnique({
+      where: { id },
+      include: {
+        works: { select: { id: true } },
+      },
+    });
+
+    if (!service) {
+      return res.status(404).json({ message: 'Service not found.' });
+    }
+
+    if (service.works.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete service: works are associated with it. Please reassign works first.' });
+    }
+
     await prisma.service.delete({ where: { id } });
     res.status(200).json({ message: 'Service deleted successfully' });
   } catch (error) {

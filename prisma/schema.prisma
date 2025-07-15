@@ -92,7 +92,7 @@ model User {
   twoFactorSecret  String?
 
 
-  services Service[] // Un utente può essere responsabile di più servizi
+  works Work[] // Un utente può essere responsabile di più servizi
 }
 
 model Client {
@@ -105,7 +105,7 @@ model Client {
   phone      String?
   subjects   Subject[]
   properties Property[]
-  services   Service[]
+  works      Work[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -125,7 +125,7 @@ model Subject {
   lastName  String
   client    Client   @relation(fields: [clientId], references: [id])
   clientId  String
-  services  Service[]
+  works     Work[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -137,65 +137,64 @@ model Property {
   city          String
   client        Client    @relation(fields: [clientId], references: [id])
   clientId      String
-  services      Service[]
+  works         Work[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
 
-model ServiceType {
+model Service {
   id          String    @id @default(cuid())
   name        String    @unique
   description String?
-  services    Service[]
+  works       Work[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
-model Service {
-  id              String           @id @default(cuid())
-  description     String
-  date            DateTime
-  amount          Float
-  paymentStatus   String?
-  subject         Subject           @relation(fields: [subjectId], references: [id])
-  subjectId       String
-  client          Client           @relation(fields: [clientId], references: [id])
-  clientId        String
-  property        Property?        @relation(fields: [propertyId], references: [id])
-  propertyId      String?
-  serviceType     ServiceType      @relation(fields: [serviceTypeId], references: [id])
-  serviceTypeId   String
-  // Relazione molti-a-molti con Payment tramite ServicePayment
-  servicePayments ServicePayment[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+model Work {
+  id            String           @id @default(cuid())
+  description   String
+  date          DateTime
+  amount        Float
+  paymentStatus String?
+  subject       Subject          @relation(fields: [subjectId], references: [id])
+  subjectId     String
+  client        Client           @relation(fields: [clientId], references: [id])
+  clientId      String
+  property      Property?        @relation(fields: [propertyId], references: [id])
+  propertyId    String?
+  service       Service          @relation(fields: [serviceId], references: [id])
+  serviceId     String
+  // Relazione molti-a-molti con Payment tramite WorkPayment
+  workPayments  WorkPayment[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   User   User?   @relation(fields: [userId], references: [id])
   userId String?
 }
 
 model Payment {
-  id              String           @id @default(cuid())
-  date            DateTime
-  amount          Float
-  isRefund        Boolean
-  status          String
-  method          String // e.g., "Bank Transfer", "Cash", "Credit Card"
-  // Relazione molti-a-molti con Service tramite ServicePayment
-  servicePayments ServicePayment[]
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id            String        @id @default(cuid())
+  date          DateTime
+  amount        Float
+  isRefund      Boolean
+  status        String
+  method        String // e.g., "Bank Transfer", "Cash", "Credit Card"
+  // Relazione molti-a-molti con Work tramite WorkPayment
+  workPayments  WorkPayment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
-// Tabella di collegamento per la relazione molti-a-molti tra Service e Payment
-model ServicePayment {
-  service   Service  @relation(fields: [serviceId], references: [id])
-  serviceId String
-  payment   Payment  @relation(fields: [paymentId], references: [id])
+// Tabella di collegamento per la relazione molti-a-molti tra Work e Payment
+model WorkPayment {
+  work     Work     @relation(fields: [workId], references: [id])
+  workId   String
+  payment  Payment  @relation(fields: [paymentId], references: [id])
   paymentId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Chiave primaria composta per garantire l'unicità del collegamento
-  @@id([serviceId, paymentId])
+  @@id([workId, paymentId])
 }

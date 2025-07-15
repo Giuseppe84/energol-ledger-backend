@@ -47,7 +47,7 @@ const getAllClients = async (req, res) => {
         const clients = await prisma_1.default.client.findMany({
             include: {
                 properties: { select: { id: true, address: true, city: true } }, // Includi solo alcuni dettagli
-                services: { select: { id: true, description: true, amount: true } }
+                works: { select: { id: true, description: true, amount: true } }
             }
         });
         res.status(200).json(clients);
@@ -65,7 +65,7 @@ const getClientById = async (req, res) => {
             where: { id },
             include: {
                 properties: true, // Includi tutte le proprietà
-                services: true, // Includi tutti i servizi
+                works: true, // Includi tutti i servizi
                 subjects: true // Includi tutti i soggetti (se la relazione Subject[] era intenzionale per Client, altrimenti rivedila)
             }
         });
@@ -120,7 +120,7 @@ const deleteClient = async (req, res) => {
         const client = await prisma_1.default.client.findUnique({
             where: { id },
             include: {
-                services: { select: { id: true } },
+                works: { select: { id: true } },
                 properties: { select: { id: true } },
                 // Se un client ha Subject[], dovresti gestire anche questo
                 // subjects: { select: { id: true } }
@@ -130,7 +130,7 @@ const deleteClient = async (req, res) => {
             return res.status(404).json({ message: 'Client not found.' });
         }
         // Controlla e impedisci l'eliminazione se ci sono dipendenze
-        if (client.services.length > 0 || client.properties.length > 0 /* || client.subjects.length > 0 */) {
+        if (client.works.length > 0 || client.properties.length > 0 /* || client.subjects.length > 0 */) {
             return res.status(400).json({ message: 'Cannot delete client: associated services, properties, or subjects exist. Please reassign or delete them first.' });
         }
         await prisma_1.default.client.delete({ where: { id } });

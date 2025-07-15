@@ -5,26 +5,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deletePayment = exports.updatePayment = exports.getPaymentById = exports.getAllPayments = exports.createPayment = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
-const paymentServiceStatusCalculator_1 = require("../utils/paymentServiceStatusCalculator");
+const paymentWorkStatusCalculator_1 = require("../utils/paymentWorkStatusCalculator");
 const createPayment = async (req, res) => {
-    const { date, amount, isRefund, status, method, serviceIds } = req.body;
+    const { date, amount, isRefund, status, method, workIds } = req.body;
     // I campi date, amount, isRefund, status, method sono ora obbligatori.
-    // serviceIds è un array opzionale di ID di servizi a cui questo pagamento si riferisce.
+    // workIds è un array opzionale di ID di lavori a cui questo pagamento si riferisce.
     if (!date || !amount || typeof isRefund === 'undefined' || !status || !method) {
         return res.status(400).json({ message: 'Date, amount, isRefund, status, and method are required for a payment.' });
     }
     try {
-        // Controlla se i serviceIds forniti esistono e sono validi
-        if (serviceIds && serviceIds.length > 0) {
-            const existingServices = await prisma_1.default.service.findMany({
-                where: { id: { in: serviceIds } },
+        // Controlla se i workIds forniti esistono e sono validi
+        if (workIds && workIds.length > 0) {
+            const existingWorks = await prisma_1.default.work.findMany({
+                where: { id: { in: workIds } },
                 select: { id: true }
             });
-            if (existingServices.length !== serviceIds.length) {
-                // Trova gli ID dei servizi non trovati per un messaggio di errore più specifico
-                const foundIds = existingServices.map((s) => s.id);
-                const notFoundIds = serviceIds.filter((id) => !foundIds.includes(id));
-                return res.status(404).json({ message: `One or more services not found: ${notFoundIds.join(', ')}` });
+            if (existingWorks.length !== workIds.length) {
+                // Trova gli ID dei lavori non trovati per un messaggio di errore più specifico
+                const foundIds = existingWorks.map((w) => w.id);
+                const notFoundIds = workIds.filter((id) => !foundIds.includes(id));
+                return res.status(404).json({ message: `One or more works not found: ${notFoundIds.join(', ')}` });
             }
         }
         const newPayment = await prisma_1.default.payment.create({
@@ -34,24 +34,24 @@ const createPayment = async (req, res) => {
                 isRefund: Boolean(isRefund),
                 status, // Assicurati che lo status sia valido (es. "PENDING", "COMPLETED", "FAILED")
                 method,
-                servicePayments: {
-                    create: serviceIds ? serviceIds.map((serviceId) => ({
-                        service: { connect: { id: serviceId } }
+                workPayments: {
+                    create: workIds ? workIds.map((workId) => ({
+                        work: { connect: { id: workId } }
                     })) : []
                 }
             },
             include: {
-                servicePayments: {
+                workPayments: {
                     include: {
-                        service: { select: { id: true, description: true, amount: true } }
+                        work: { select: { id: true, description: true, amount: true } }
                     }
                 }
             }
         });
-        // Dopo aver creato il pagamento, ricalcola lo stato di pagamento per i servizi interessati
-        if (serviceIds && serviceIds.length > 0) {
-            for (const serviceId of serviceIds) {
-                await (0, paymentServiceStatusCalculator_1.calculateAndSetServicePaymentStatus)(serviceId);
+        // Dopo aver creato il pagamento, ricalcola lo stato di pagamento per i lavori interessati
+        if (workIds && workIds.length > 0) {
+            for (const workId of workIds) {
+                await (0, paymentWorkStatusCalculator_1.calculateAndSetWorkPaymentStatus)(workId);
             }
         }
         res.status(201).json({ message: 'Payment created successfully', payment: newPayment });
@@ -76,9 +76,9 @@ const getAllPayments = async (req, res) => {
         const payments = await prisma_1.default.payment.findMany({
             where,
             include: {
-                servicePayments: {
+                workPayments: {
                     include: {
-                        service: { select: { id: true, description: true, amount: true, clientId: true, paymentStatus: true } }
+                        work: { select: { id: true, description: true, amount: true, clientId: true, paymentStatus: true } }
                     }
                 }
             }
@@ -97,9 +97,9 @@ const getPaymentById = async (req, res) => {
         const payment = await prisma_1.default.payment.findUnique({
             where: { id },
             include: {
-                servicePayments: {
+                workPayments: {
                     include: {
-                        service: { select: { id: true, description: true, amount: true, clientId: true, paymentStatus: true } }
+                        work: { select: { id: true, description: true, amount: true, clientId: true, paymentStatus: true } }
                     }
                 }
             }
@@ -117,18 +117,18 @@ const getPaymentById = async (req, res) => {
 exports.getPaymentById = getPaymentById;
 const updatePayment = async (req, res) => {
     const { id } = req.params;
-    const { date, amount, isRefund, status, method, serviceIds } = req.body;
-    // Ottieni lo stato attuale del pagamento e i servizi collegati
+    const { date, amount, isRefund, status, method, workIds } = req.body;
+    // Ottieni lo stato attuale del pagamento e i lavori collegati
     const currentPayment = await prisma_1.default.payment.findUnique({
         where: { id },
         include: {
-            servicePayments: { select: { serviceId: true } }
+            workPayments: { select: { workId: true } }
         }
     });
     if (!currentPayment) {
         return res.status(404).json({ message: 'Payment not found.' });
     }
-    const servicesToRecalculate = [];
+    const worksToRecalculate = [];
     try {
         // Oggetto di update senza tipizzazione Prisma esplicita
         const updateData = {
@@ -144,48 +144,48 @@ const updatePayment = async (req, res) => {
             updateData.status = status;
         if (method !== undefined)
             updateData.method = method;
-        if (serviceIds !== undefined) {
-            const currentServiceIds = currentPayment.servicePayments.map((sp) => sp.serviceId);
-            const serviceIdsToDisconnect = currentServiceIds.filter((serviceId) => !serviceIds.includes(serviceId));
-            const serviceIdsToConnect = serviceIds.filter((serviceId) => !currentServiceIds.includes(serviceId));
-            if (serviceIdsToConnect.length > 0) {
-                const existingNewServices = await prisma_1.default.service.findMany({
-                    where: { id: { in: serviceIdsToConnect } },
+        if (workIds !== undefined) {
+            const currentWorkIds = currentPayment.workPayments.map((wp) => wp.workId);
+            const workIdsToDisconnect = currentWorkIds.filter((workId) => !workIds.includes(workId));
+            const workIdsToConnect = workIds.filter((workId) => !currentWorkIds.includes(workId));
+            if (workIdsToConnect.length > 0) {
+                const existingNewWorks = await prisma_1.default.work.findMany({
+                    where: { id: { in: workIdsToConnect } },
                     select: { id: true }
                 });
-                if (existingNewServices.length !== serviceIdsToConnect.length) {
-                    const foundIds = existingNewServices.map((s) => s.id);
-                    const notFoundIds = serviceIdsToConnect.filter((id) => !foundIds.includes(id));
-                    return res.status(404).json({ message: `One or more new services to connect not found: ${notFoundIds.join(', ')}` });
+                if (existingNewWorks.length !== workIdsToConnect.length) {
+                    const foundIds = existingNewWorks.map((w) => w.id);
+                    const notFoundIds = workIdsToConnect.filter((id) => !foundIds.includes(id));
+                    return res.status(404).json({ message: `One or more new works to connect not found: ${notFoundIds.join(', ')}` });
                 }
             }
-            updateData.servicePayments = {
-                deleteMany: serviceIdsToDisconnect.map((serviceId) => ({
+            updateData.workPayments = {
+                deleteMany: workIdsToDisconnect.map((workId) => ({
                     paymentId: id,
-                    serviceId: serviceId
+                    workId: workId
                 })),
-                create: serviceIdsToConnect.map((serviceId) => ({
-                    service: { connect: { id: serviceId } }
+                create: workIdsToConnect.map((workId) => ({
+                    work: { connect: { id: workId } }
                 }))
             };
-            servicesToRecalculate.push(...new Set([...currentServiceIds, ...serviceIds]));
+            worksToRecalculate.push(...new Set([...currentWorkIds, ...workIds]));
         }
         else {
-            servicesToRecalculate.push(...currentPayment.servicePayments.map((sp) => sp.serviceId));
+            worksToRecalculate.push(...currentPayment.workPayments.map((wp) => wp.workId));
         }
         const updatedPayment = await prisma_1.default.payment.update({
             where: { id },
             data: updateData,
             include: {
-                servicePayments: {
+                workPayments: {
                     include: {
-                        service: { select: { id: true, description: true, amount: true } }
+                        work: { select: { id: true, description: true, amount: true } }
                     }
                 }
             }
         });
-        for (const serviceId of servicesToRecalculate) {
-            await (0, paymentServiceStatusCalculator_1.calculateAndSetServicePaymentStatus)(serviceId);
+        for (const workId of worksToRecalculate) {
+            await (0, paymentWorkStatusCalculator_1.calculateAndSetWorkPaymentStatus)(workId);
         }
         res.status(200).json({ message: 'Payment updated successfully', payment: updatedPayment });
     }
@@ -197,22 +197,22 @@ const updatePayment = async (req, res) => {
 exports.updatePayment = updatePayment;
 const deletePayment = async (req, res) => {
     const { id } = req.params;
-    // Recupera gli ID dei servizi collegati prima di eliminare il pagamento
-    const servicesLinkedToPayment = await prisma_1.default.servicePayment.findMany({
+    // Recupera gli ID dei lavori collegati prima di eliminare il pagamento
+    const worksLinkedToPayment = await prisma_1.default.workPayment.findMany({
         where: { paymentId: id },
-        select: { serviceId: true }
+        select: { workId: true }
     });
-    const serviceIdsToRecalculate = servicesLinkedToPayment.map((sp) => sp.serviceId);
+    const workIdsToRecalculate = worksLinkedToPayment.map((wp) => wp.workId);
     try {
-        // Elimina prima tutte le entità ServicePayment collegate a questo pagamento
-        await prisma_1.default.servicePayment.deleteMany({
+        // Elimina prima tutte le entità WorkPayment collegate a questo pagamento
+        await prisma_1.default.workPayment.deleteMany({
             where: { paymentId: id },
         });
         // Quindi elimina il pagamento stesso
         await prisma_1.default.payment.delete({ where: { id } });
-        // Ricalcola lo stato di pagamento per i servizi che erano collegati
-        for (const serviceId of serviceIdsToRecalculate) {
-            await (0, paymentServiceStatusCalculator_1.calculateAndSetServicePaymentStatus)(serviceId);
+        // Ricalcola lo stato di pagamento per i lavori che erano collegati
+        for (const workId of workIdsToRecalculate) {
+            await (0, paymentWorkStatusCalculator_1.calculateAndSetWorkPaymentStatus)(workId);
         }
         res.status(200).json({ message: 'Payment deleted successfully' });
     }

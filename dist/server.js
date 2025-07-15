@@ -19,8 +19,8 @@ const permission_routes_1 = __importDefault(require("./routes/permission.routes"
 const client_routes_1 = __importDefault(require("./routes/client.routes"));
 const property_routes_1 = __importDefault(require("./routes/property.routes"));
 const subject_routes_1 = __importDefault(require("./routes/subject.routes"));
-const serviceType_routes_1 = __importDefault(require("./routes/serviceType.routes"));
 const service_routes_1 = __importDefault(require("./routes/service.routes"));
+const work_routes_1 = __importDefault(require("./routes/work.routes"));
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -46,8 +46,8 @@ app.use('/api/users', user_routes_1.default);
 app.use('/api/clients', client_routes_1.default);
 app.use('/api/properties', property_routes_1.default);
 app.use('/api/subjects', subject_routes_1.default);
-app.use('/api/service-types', serviceType_routes_1.default);
 app.use('/api/services', service_routes_1.default);
+app.use('/api/work', work_routes_1.default);
 app.use('/api/payments', payment_routes_1.default);
 // Gestione degli errori (catch-all)
 app.use((err, req, res, next) => {
