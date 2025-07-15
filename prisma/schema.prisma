@@ -39,7 +39,7 @@ enum PermissionResource {
   CLIENT
   PROPERTY
   SUBJECT
-  SERVICETYPE
+  WORK
   SERVICE
   PAYMENT
 }

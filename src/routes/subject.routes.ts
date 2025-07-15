@@ -5,10 +5,10 @@ import { authenticate, authorizeRole, hasPermission } from '../middlewares/auth.
 
 const router = Router();
 
-router.post('/', authenticate, authorizeRole(['Admin', 'Manager']), hasPermission('create:subject'), createSubject);
-router.get('/', authenticate, authorizeRole(['Admin', 'Manager', 'User']), hasPermission('read:subject'), getAllSubjects);
-router.get('/:id', authenticate, authorizeRole(['Admin', 'Manager', 'User']), hasPermission('read:subject'), getSubjectById);
-router.put('/:id', authenticate, authorizeRole(['Admin', 'Manager']), hasPermission('update:subject'), updateSubject);
-router.delete('/:id', authenticate, authorizeRole(['Admin']), hasPermission('delete:subject'), deleteSubject);
+router.post('/', authenticate, authorizeRole(['ADMIN', 'USER']), hasPermission('create:subject'), createSubject);
+router.get('/', authenticate, authorizeRole(['ADMIN',  'USER']), hasPermission('read:subject'), getAllSubjects);
+router.get('/:id', authenticate, authorizeRole(['ADMIN', 'USER']), hasPermission('read:subject'), getSubjectById);
+router.put('/:id', authenticate, authorizeRole(['ADMIN', 'USER']), hasPermission('update:subject'), updateSubject);
+router.delete('/:id', authenticate, authorizeRole(['ADMIN']), hasPermission('delete:subject'), deleteSubject);
 
 export default router;
