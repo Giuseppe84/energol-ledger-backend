@@ -63,7 +63,11 @@ export const getClientById = async (req: Request, res: Response) => {
       include: {
         properties: true, // Includi tutte le proprietà
         works: true,   // Includi tutti i servizi
-        subjects: true    // Includi tutti i soggetti (se la relazione Subject[] era intenzionale per Client, altrimenti rivedila)
+        clientSubjects: {
+          include: {
+            subject: true
+          }
+        }
       }
     });
     if (!client) {
@@ -117,7 +121,7 @@ export const deleteClient = async (req: Request, res: Response) => {
         works: { select: { id: true } },
         properties: { select: { id: true } },
         // Se un client ha Subject[], dovresti gestire anche questo
-        // subjects: { select: { id: true } }
+        clientSubjects: { select: { subjectId: true } }
       }
     });
 
@@ -126,7 +130,7 @@ export const deleteClient = async (req: Request, res: Response) => {
     }
 
     // Controlla e impedisci l'eliminazione se ci sono dipendenze
-    if (client.works.length > 0 || client.properties.length > 0 /* || client.subjects.length > 0 */) {
+    if (client.works.length > 0 || client.properties.length > 0 || client.clientSubjects.length > 0) {
       return res.status(400).json({ message: 'Cannot delete client: associated services, properties, or subjects exist. Please reassign or delete them first.' });
     }
 

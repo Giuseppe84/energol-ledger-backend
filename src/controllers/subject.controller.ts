@@ -16,8 +16,14 @@ export const createSubject = async (req: Request, res: Response) => {
       data: {
         taxId,
         firstName,
-        lastName,
-        clientId
+        lastName
+      }
+    });
+    await prisma.clientSubject.create({
+      data: {
+        clientId,
+        subjectId: newSubject.id,
+        isSamePerson: false
       }
     });
     res.status(201).json({ message: 'Subject created successfully', subject: newSubject });
@@ -34,7 +40,13 @@ export const createSubject = async (req: Request, res: Response) => {
 export const getAllSubjects = async (req: Request, res: Response) => {
   try {
     const subjects = await prisma.subject.findMany({
-      include: { client: true } // Optional: include client details
+      include: {
+        clientSubjects: {
+          include: {
+            client: true
+          }
+        }
+      }
     });
     res.status(200).json(subjects);
   } catch (error) {
@@ -49,7 +61,13 @@ export const getSubjectById = async (req: Request, res: Response) => {
   try {
     const subject = await prisma.subject.findUnique({
       where: { id },
-      include: { client: true } // Optional
+      include: {
+        clientSubjects: {
+          include: {
+            client: true
+          }
+        }
+      }
     });
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found.' });
@@ -64,7 +82,7 @@ export const getSubjectById = async (req: Request, res: Response) => {
 // Update Subject
 export const updateSubject = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { taxId, firstName, lastName, clientId } = req.body;
+  const { taxId, firstName, lastName } = req.body;
 
   try {
     const updatedSubject = await prisma.subject.update({
@@ -72,8 +90,7 @@ export const updateSubject = async (req: Request, res: Response) => {
       data: {
         taxId,
         firstName,
-        lastName,
-        clientId
+        lastName
       }
     });
     res.status(200).json({ message: 'Subject updated successfully', subject: updatedSubject });

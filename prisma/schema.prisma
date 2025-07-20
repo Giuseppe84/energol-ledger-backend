@@ -103,7 +103,7 @@ model Client {
   lastName   String
   email      String     @unique
   phone      String?
-  subjects   Subject[]
+  clientSubjects  ClientSubject[]
   properties Property[]
   works      Work[]
   createdAt  DateTime   @default(now())
@@ -123,8 +123,7 @@ model Subject {
   taxId     String   @unique // Corresponds to "Codice Fiscale"
   firstName String
   lastName  String
-  client    Client   @relation(fields: [clientId], references: [id])
-  clientId  String
+  clientSubjects  ClientSubject[]
   works     Work[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -197,4 +196,15 @@ model WorkPayment {
   updatedAt DateTime @updatedAt
 
   @@id([workId, paymentId])
+}
+
+model ClientSubject {
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+  createdAt DateTime @default(now())
+  isSamePerson Boolean @default(false)
+
+  @@id([clientId, subjectId])
 }
