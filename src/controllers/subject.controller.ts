@@ -5,30 +5,28 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 // Create Subject
 export const createSubject = async (req: Request, res: Response) => {
-  const { taxId, firstName, lastName, clientId } = req.body;
+  const { taxId, firstName, lastName, clientId, isSamePerson = false } = req.body;
 
   if (!taxId || !firstName || !lastName) {
     return res.status(400).json({ message: 'Fields taxId, firstName, lastName are required.' });
   }
 
   try {
+    // Create subject with only taxId, firstName, lastName
     const newSubject = await prisma.subject.create({
       data: {
         taxId,
         firstName,
-        lastName
+        lastName,
       }
     });
+    // If clientId is provided, create clientSubject with isSamePerson, no duplicate checks
     if (clientId) {
-      const client = await prisma.client.findUnique({ where: { id: clientId } });
-      if (!client) {
-        return res.status(400).json({ message: 'Client ID is invalid.' });
-      }
       await prisma.clientSubject.create({
         data: {
           clientId,
           subjectId: newSubject.id,
-          isSamePerson: false
+          isSamePerson
         }
       });
     }
@@ -130,6 +128,7 @@ export const deleteSubject = async (req: Request, res: Response) => {
 // Assign client to subject
 export const assignClientToSubject = async (req: Request, res: Response) => {
   const { id, clientId } = req.params;
+  const { isSamePerson = false } = req.body;
 
   try {
     const subject = await prisma.subject.findUnique({ where: { id } });
@@ -156,7 +155,7 @@ export const assignClientToSubject = async (req: Request, res: Response) => {
       data: {
         clientId,
         subjectId: id,
-        isSamePerson: false
+        isSamePerson
       }
     });
 

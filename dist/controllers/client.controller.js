@@ -149,6 +149,7 @@ exports.deleteClient = deleteClient;
 // Assign subject to client
 const assignSubjectToClient = async (req, res) => {
     const { id, subjectId } = req.params;
+    const { isSamePerson = false } = req.body;
     try {
         const client = await prisma_1.default.client.findUnique({ where: { id } });
         const subject = await prisma_1.default.subject.findUnique({ where: { id: subjectId } });
@@ -170,7 +171,7 @@ const assignSubjectToClient = async (req, res) => {
             data: {
                 clientId: id,
                 subjectId,
-                isSamePerson: false
+                isSamePerson
             }
         });
         res.status(201).json({ message: 'Subject linked to client successfully', link });

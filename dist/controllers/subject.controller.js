@@ -9,24 +9,28 @@ const library_1 = require("@prisma/client/runtime/library");
 // Create Subject
 const createSubject = async (req, res) => {
     const { taxId, firstName, lastName, clientId } = req.body;
-    if (!taxId || !firstName || !lastName || !clientId) {
-        return res.status(400).json({ message: 'All fields (taxId, firstName, lastName, clientId) are required.' });
+    if (!taxId || !firstName || !lastName) {
+        return res.status(400).json({ message: 'Fields taxId, firstName, lastName are required.' });
     }
     try {
+        // Create subject with only taxId, firstName, lastName
         const newSubject = await prisma_1.default.subject.create({
             data: {
                 taxId,
                 firstName,
-                lastName
+                lastName,
             }
         });
-        await prisma_1.default.clientSubject.create({
-            data: {
-                clientId,
-                subjectId: newSubject.id,
-                isSamePerson: false
-            }
-        });
+        // If clientId is provided, create clientSubject with isSamePerson: false, no duplicate checks
+        if (clientId) {
+            await prisma_1.default.clientSubject.create({
+                data: {
+                    clientId,
+                    subjectId: newSubject.id,
+                    isSamePerson: false
+                }
+            });
+        }
         res.status(201).json({ message: 'Subject created successfully', subject: newSubject });
     }
     catch (error) {
@@ -127,6 +131,7 @@ exports.deleteSubject = deleteSubject;
 // Assign client to subject
 const assignClientToSubject = async (req, res) => {
     const { id, clientId } = req.params;
+    const { isSamePerson = false } = req.body;
     try {
         const subject = await prisma_1.default.subject.findUnique({ where: { id } });
         const client = await prisma_1.default.client.findUnique({ where: { id: clientId } });
@@ -148,7 +153,7 @@ const assignClientToSubject = async (req, res) => {
             data: {
                 clientId,
                 subjectId: id,
-                isSamePerson: false
+                isSamePerson
             }
         });
         res.status(201).json({ message: 'Client linked to subject successfully', link });
