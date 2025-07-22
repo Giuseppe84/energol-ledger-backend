@@ -46,3 +46,4 @@ coverage/
 *.zip
 *.bak
 *.old
+dist/

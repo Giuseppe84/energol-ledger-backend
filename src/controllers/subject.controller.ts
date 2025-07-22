@@ -7,8 +7,8 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 export const createSubject = async (req: Request, res: Response) => {
   const { taxId, firstName, lastName, clientId } = req.body;
 
-  if (!taxId || !firstName || !lastName || !clientId) {
-    return res.status(400).json({ message: 'All fields (taxId, firstName, lastName, clientId) are required.' });
+  if (!taxId || !firstName || !lastName) {
+    return res.status(400).json({ message: 'Fields taxId, firstName, lastName are required.' });
   }
 
   try {
@@ -19,13 +19,19 @@ export const createSubject = async (req: Request, res: Response) => {
         lastName
       }
     });
-    await prisma.clientSubject.create({
-      data: {
-        clientId,
-        subjectId: newSubject.id,
-        isSamePerson: false
+    if (clientId) {
+      const client = await prisma.client.findUnique({ where: { id: clientId } });
+      if (!client) {
+        return res.status(400).json({ message: 'Client ID is invalid.' });
       }
-    });
+      await prisma.clientSubject.create({
+        data: {
+          clientId,
+          subjectId: newSubject.id,
+          isSamePerson: false
+        }
+      });
+    }
     res.status(201).json({ message: 'Subject created successfully', subject: newSubject });
   } catch (error) {
     console.error('Error creating subject:', error);
