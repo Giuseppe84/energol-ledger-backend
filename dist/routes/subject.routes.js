@@ -10,4 +10,5 @@ router.get('/', auth_middleware_1.authenticate, (0, auth_middleware_1.authorizeR
 router.get('/:id', auth_middleware_1.authenticate, (0, auth_middleware_1.authorizeRole)(['Admin', 'User']), (0, auth_middleware_1.hasPermission)('read:subject'), subject_controller_1.getSubjectById);
 router.put('/:id', auth_middleware_1.authenticate, (0, auth_middleware_1.authorizeRole)(['Admin', 'User']), (0, auth_middleware_1.hasPermission)('update:subject'), subject_controller_1.updateSubject);
 router.delete('/:id', auth_middleware_1.authenticate, (0, auth_middleware_1.authorizeRole)(['Admin']), (0, auth_middleware_1.hasPermission)('delete:subject'), subject_controller_1.deleteSubject);
+router.post('/:id/assign-client/:clientId', auth_middleware_1.authenticate, (0, auth_middleware_1.authorizeRole)(['Admin']), (0, auth_middleware_1.hasPermission)('update:subject'), subject_controller_1.assignClientToSubject);
 exports.default = router;

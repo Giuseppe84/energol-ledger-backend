@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteClient = exports.updateClient = exports.getClientById = exports.getAllClients = exports.createClient = void 0;
+exports.assignSubjectToClient = exports.deleteClient = exports.updateClient = exports.getClientById = exports.getAllClients = exports.createClient = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const library_1 = require("@prisma/client/runtime/library");
 const createClient = async (req, res) => {
@@ -146,3 +146,38 @@ const deleteClient = async (req, res) => {
     }
 };
 exports.deleteClient = deleteClient;
+// Assign subject to client
+const assignSubjectToClient = async (req, res) => {
+    const { id, subjectId } = req.params;
+    try {
+        const client = await prisma_1.default.client.findUnique({ where: { id } });
+        const subject = await prisma_1.default.subject.findUnique({ where: { id: subjectId } });
+        if (!client || !subject) {
+            return res.status(404).json({ message: 'Client or subject not found.' });
+        }
+        const existing = await prisma_1.default.clientSubject.findUnique({
+            where: {
+                clientId_subjectId: {
+                    clientId: id,
+                    subjectId
+                }
+            }
+        });
+        if (existing) {
+            return res.status(409).json({ message: 'This subject is already linked to the client.' });
+        }
+        const link = await prisma_1.default.clientSubject.create({
+            data: {
+                clientId: id,
+                subjectId,
+                isSamePerson: false
+            }
+        });
+        res.status(201).json({ message: 'Subject linked to client successfully', link });
+    }
+    catch (error) {
+        console.error('Error assigning subject to client:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.assignSubjectToClient = assignSubjectToClient;

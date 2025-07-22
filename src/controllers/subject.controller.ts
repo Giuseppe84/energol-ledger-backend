@@ -120,3 +120,43 @@ export const deleteSubject = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// Assign client to subject
+export const assignClientToSubject = async (req: Request, res: Response) => {
+  const { id, clientId } = req.params;
+
+  try {
+    const subject = await prisma.subject.findUnique({ where: { id } });
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+
+    if (!subject || !client) {
+      return res.status(404).json({ message: 'Client or subject not found.' });
+    }
+
+    const existing = await prisma.clientSubject.findUnique({
+      where: {
+        clientId_subjectId: {
+          clientId,
+          subjectId: id
+        }
+      }
+    });
+
+    if (existing) {
+      return res.status(409).json({ message: 'This client is already linked to the subject.' });
+    }
+
+    const link = await prisma.clientSubject.create({
+      data: {
+        clientId,
+        subjectId: id,
+        isSamePerson: false
+      }
+    });
+
+    res.status(201).json({ message: 'Client linked to subject successfully', link });
+  } catch (error) {
+    console.error('Error assigning client to subject:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

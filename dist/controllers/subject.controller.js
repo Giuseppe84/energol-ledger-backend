@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteSubject = exports.updateSubject = exports.getSubjectById = exports.getAllSubjects = exports.createSubject = void 0;
+exports.assignClientToSubject = exports.deleteSubject = exports.updateSubject = exports.getSubjectById = exports.getAllSubjects = exports.createSubject = void 0;
 const prisma_1 = __importDefault(require("../utils/prisma"));
 const library_1 = require("@prisma/client/runtime/library");
 // Create Subject
@@ -124,3 +124,38 @@ const deleteSubject = async (req, res) => {
     }
 };
 exports.deleteSubject = deleteSubject;
+// Assign client to subject
+const assignClientToSubject = async (req, res) => {
+    const { id, clientId } = req.params;
+    try {
+        const subject = await prisma_1.default.subject.findUnique({ where: { id } });
+        const client = await prisma_1.default.client.findUnique({ where: { id: clientId } });
+        if (!subject || !client) {
+            return res.status(404).json({ message: 'Client or subject not found.' });
+        }
+        const existing = await prisma_1.default.clientSubject.findUnique({
+            where: {
+                clientId_subjectId: {
+                    clientId,
+                    subjectId: id
+                }
+            }
+        });
+        if (existing) {
+            return res.status(409).json({ message: 'This client is already linked to the subject.' });
+        }
+        const link = await prisma_1.default.clientSubject.create({
+            data: {
+                clientId,
+                subjectId: id,
+                isSamePerson: false
+            }
+        });
+        res.status(201).json({ message: 'Client linked to subject successfully', link });
+    }
+    catch (error) {
+        console.error('Error assigning client to subject:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+exports.assignClientToSubject = assignClientToSubject;
