@@ -10,7 +10,7 @@ export const createSubject = async (req: Request, res: Response) => {
   if (!taxId || !firstName || !lastName) {
     return res.status(400).json({ message: 'Fields taxId, firstName, lastName are required.' });
   }
-
+// Validate taxId format (example: simple regex for demonstration)
   try {
     // Create subject with only taxId, firstName, lastName
     const newSubject = await prisma.subject.create({
