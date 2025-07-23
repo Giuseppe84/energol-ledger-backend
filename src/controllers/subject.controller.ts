@@ -6,7 +6,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 // Create Subject
 export const createSubject = async (req: Request, res: Response) => {
   const { taxId, firstName, lastName, clientId, isSamePerson = false } = req.body;
-
+console.log('Creating subject with data:', { taxId, firstName, lastName, clientId, isSamePerson });
   if (!taxId || !firstName || !lastName) {
     return res.status(400).json({ message: 'Fields taxId, firstName, lastName are required.' });
   }
