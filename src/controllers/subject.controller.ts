@@ -165,3 +165,32 @@ export const assignClientToSubject = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// Get Subjects by Client ID
+export const getSubjectsByClient = async (req: Request, res: Response) => {
+  const { clientId } = req.params;
+
+  try {
+    const subjects = await prisma.subject.findMany({
+      where: {
+        clientSubjects: {
+          some: {
+            clientId,
+          },
+        },
+      },
+      include: {
+        clientSubjects: {
+          include: {
+            client: true,
+          },
+        },
+      },
+    });
+
+    res.status(200).json(subjects);
+  } catch (error) {
+    console.error('Error fetching subjects by client:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};

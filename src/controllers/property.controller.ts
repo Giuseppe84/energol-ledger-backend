@@ -7,7 +7,7 @@ export const getAllProperties = async (_req: Request, res: Response) => {
   try {
     const properties = await prisma.property.findMany({
       include: {
-        client: { select: { id: true, firstName: true, lastName: true, email: true } }
+        subject: { select: { id: true, firstName: true, lastName: true, taxId: true } }
       }
     });
     res.status(200).json(properties);
@@ -19,26 +19,26 @@ export const getAllProperties = async (_req: Request, res: Response) => {
 
 // Crea una nuova proprietà
 export const createProperty = async (req: Request, res: Response) => {
-  const { cadastralCode, address, city, clientId } = req.body;
-  if (!cadastralCode || !address || !city || !clientId) {
-    return res.status(400).json({ message: 'Cadastral code, address, city, and clientId are required.' });
+  const { cadastralCode, address, city, subjectId } = req.body;
+  if (!cadastralCode || !address || !city || !subjectId) {
+    return res.status(400).json({ message: 'Cadastral code, address, city, and subjectId are required.' });
   }
   try {
-    const client = await prisma.client.findUnique({ where: { id: clientId } });
-    if (!client) {
-      return res.status(404).json({ message: 'Client not found.' });
+    const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found.' });
     }
     const newProperty = await prisma.property.create({
       data: {
         cadastralCode,
         address,
         city,
-        client: { connect: { id: clientId } },
+        subject: { connect: { id: subjectId } },
         createdAt: new Date(),
         updatedAt: new Date(),
       },
       include: {
-        client: { select: { id: true, firstName: true, lastName: true, email: true } }
+        subject: { select: { id: true, firstName: true, lastName: true, taxId: true } }
       }
     });
     res.status(201).json({ message: 'Property created successfully', property: newProperty });
@@ -55,7 +55,7 @@ export const getPropertyById = async (req: Request, res: Response) => {
     const property = await prisma.property.findUnique({
       where: { id },
       include: {
-        client: { select: { id: true, firstName: true, lastName: true, email: true } }
+        subject: { select: { id: true, firstName: true, lastName: true, taxId: true } }
       }
     });
     if (!property) {
@@ -71,7 +71,7 @@ export const getPropertyById = async (req: Request, res: Response) => {
 // Aggiorna una proprietà
 export const updateProperty = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { cadastralCode, address, city, clientId } = req.body;
+  const { cadastralCode, address, city, subjectId } = req.body;
 
   try {
     const updateData: {
@@ -79,7 +79,7 @@ export const updateProperty = async (req: Request, res: Response) => {
       address?: string;
       city?: string;
       updatedAt?: Date;
-      client?: { connect: { id: string } };
+      subject?: { connect: { id: string } };
     } = {
       updatedAt: new Date(),
     };
@@ -88,19 +88,19 @@ export const updateProperty = async (req: Request, res: Response) => {
     if (address !== undefined) updateData.address = address;
     if (city !== undefined) updateData.city = city;
 
-    if (clientId !== undefined) {
-      const clientExists = await prisma.client.findUnique({ where: { id: clientId } });
-      if (!clientExists) {
-        return res.status(404).json({ message: 'Client not found.' });
+    if (subjectId !== undefined) {
+      const subjectExists = await prisma.subject.findUnique({ where: { id: subjectId } });
+      if (!subjectExists) {
+        return res.status(404).json({ message: 'Subject not found.' });
       }
-      updateData.client = { connect: { id: clientId } };
+      updateData.subject = { connect: { id: subjectId } };
     }
 
     const updatedProperty = await prisma.property.update({
       where: { id },
       data: updateData,
       include: {
-        client: { select: { id: true, firstName: true, lastName: true, email: true } }
+        subject: { select: { id: true, firstName: true, lastName: true, taxId: true } }
       }
     });
 
@@ -122,6 +122,27 @@ export const deleteProperty = async (req: Request, res: Response) => {
     res.status(200).json({ message: 'Property deleted successfully' });
   } catch (error) {
     console.error('Error deleting property:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Recupera le proprietà associate a un soggetto (tramite subject)
+export const getPropertiesBySubject = async (req: Request, res: Response) => {
+  const { subjectId } = req.params;
+
+  try {
+    const properties = await prisma.property.findMany({
+      where: {
+        subjectId
+      },
+      include: {
+        subject: { select: { id: true, firstName: true, lastName: true, taxId: true } }
+      }
+    });
+
+    res.status(200).json(properties);
+  } catch (error) {
+    console.error('Error fetching properties by subject:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

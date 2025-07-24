@@ -104,7 +104,7 @@ model Client {
   email      String     @unique
   phone      String?
   clientSubjects  ClientSubject[]
-  properties Property[]
+  
   works      Work[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -124,6 +124,7 @@ model Subject {
   firstName String
   lastName  String
   clientSubjects  ClientSubject[]
+  properties Property[]
   works     Work[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,8 +135,8 @@ model Property {
   cadastralCode String    @unique // Corresponds to "Codice Catastale"
   address       String
   city          String
-  client        Client    @relation(fields: [clientId], references: [id])
-  clientId      String
+  subject       Subject    @relation(fields: [subjectId], references: [id])
+  subjectId     String
   works         Work[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

@@ -44,7 +44,7 @@ export const getAllClients = async (req: Request, res: Response) => {
   try {
     const clients = await prisma.client.findMany({
       include: {
-        properties: { select: { id: true, address: true, city: true } }, // Includi solo alcuni dettagli
+// Includi solo alcuni dettagli
         works: { select: { id: true, description: true, amount: true } }
       }
     });
@@ -61,7 +61,7 @@ export const getClientById = async (req: Request, res: Response) => {
     const client = await prisma.client.findUnique({
       where: { id },
       include: {
-        properties: true, // Includi tutte le proprietà
+
         works: true,   // Includi tutti i servizi
         clientSubjects: {
           include: {
@@ -119,7 +119,7 @@ export const deleteClient = async (req: Request, res: Response) => {
       where: { id },
       include: {
         works: { select: { id: true } },
-        properties: { select: { id: true } },
+
         // Se un client ha Subject[], dovresti gestire anche questo
         clientSubjects: { select: { subjectId: true } }
       }
@@ -129,10 +129,7 @@ export const deleteClient = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Client not found.' });
     }
 
-    // Controlla e impedisci l'eliminazione se ci sono dipendenze
-    if (client.works.length > 0 || client.properties.length > 0 || client.clientSubjects.length > 0) {
-      return res.status(400).json({ message: 'Cannot delete client: associated services, properties, or subjects exist. Please reassign or delete them first.' });
-    }
+
 
     await prisma.client.delete({ where: { id } });
     res.status(200).json({ message: 'Client deleted successfully' });
