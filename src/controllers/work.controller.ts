@@ -21,10 +21,10 @@ export const getAllWorks = async (_req: Request, res: Response) => {
 
 // Crea un nuovo work
 export const createWork = async (req: Request, res: Response) => {
-  const { description, date, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate } = req.body;
+  const { description, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate, status } = req.body;
 
-  if (!description || !date || !amount || !clientId || !serviceId) {
-    return res.status(400).json({ message: 'Description, date, amount, clientId, and serviceId are required.' });
+  if (!description || !amount || !clientId || !serviceId) {
+    return res.status(400).json({ message: 'Description, amount, clientId, and serviceId are required.' });
   }
 
   try {
@@ -47,7 +47,6 @@ export const createWork = async (req: Request, res: Response) => {
     const newWork = await prisma.work.create({
       data: {
         description,
-        date: new Date(date),
         amount: Number(amount),
         client: { connect: { id: clientId } },
         property: propertyId ? { connect: { id: propertyId } } : undefined,
@@ -55,6 +54,7 @@ export const createWork = async (req: Request, res: Response) => {
         subject: { connect: { id: subjectId } } ,
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : undefined,
         completionDate: completionDate ? new Date(completionDate) : undefined,
+        status: status ?? 'TO_START',
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -99,7 +99,7 @@ export const getWorkById = async (req: Request, res: Response) => {
 // Aggiorna un work
 export const updateWork = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { description, date, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate } = req.body;
+  const { description, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate, status } = req.body;
 
   try {
     const updateData: any = {
@@ -107,10 +107,10 @@ export const updateWork = async (req: Request, res: Response) => {
     };
 
     if (description !== undefined) updateData.description = description;
-    if (date !== undefined) updateData.date = new Date(date);
     if (amount !== undefined) updateData.amount = Number(amount);
     if (acquisitionDate !== undefined) updateData.acquisitionDate = new Date(acquisitionDate);
     if (completionDate !== undefined) updateData.completionDate = new Date(completionDate);
+    if (status !== undefined) updateData.status = status;
 
     if (clientId !== undefined) {
       const clientExists = await prisma.client.findUnique({ where: { id: clientId } });

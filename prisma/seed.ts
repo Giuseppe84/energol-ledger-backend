@@ -128,7 +128,7 @@ async function main() {
       subordinates: '1,2',
       latitude: 39.9302,
       longitude: 18.3619,
-      location: { raw: `POINT(18.3619 39.9302)` },
+      location: Buffer.from(`POINT(18.3619 39.9302)`),
     },
   });
 
@@ -145,7 +145,7 @@ async function main() {
       subordinates: '3',
       latitude: 39.8446,
       longitude: 18.3733,
-      location: { raw: `POINT(18.3733 39.8446)` },
+      location: Buffer.from(`POINT(18.3733 39.8446)`),
     },
   });
 
@@ -162,7 +162,7 @@ async function main() {
       subordinates: '5,6,7',
       latitude: 39.8364,
       longitude: 18.3344,
-      location: { raw: `POINT(18.3344 39.8364)` },
+      location: Buffer.from(`POINT(18.3344 39.8364)`),
     },
   });
 
@@ -180,7 +180,7 @@ async function main() {
       subordinates: '4',
       latitude: 39.9198,
       longitude: 18.3601,
-      location: { raw: `POINT(18.3601 39.9198)` },
+      location: Buffer.from(`POINT(18.3601 39.9198)`),
     },
   });
 
@@ -197,7 +197,7 @@ async function main() {
       subordinates: '2,3',
       latitude: 39.9422,
       longitude: 18.3587,
-      location: { raw: `POINT(18.3587 39.9422)` },
+      location: Buffer.from(`POINT(18.3587 39.9422)`),
     },
   });
 
@@ -214,7 +214,7 @@ async function main() {
       subordinates: '1,2,3',
       latitude: 39.9123,
       longitude: 18.3304,
-      location: { raw: `POINT(18.3304 39.9123)` },
+      location: Buffer.from(`POINT(18.3304 39.9123)`),
     },
   });
 
@@ -231,7 +231,7 @@ async function main() {
       subordinates: '5',
       latitude: 39.9572,
       longitude: 18.3067,
-      location: { raw: `POINT(18.3067 39.9572)` },
+      location: Buffer.from(`POINT(18.3067 39.9572)`),
     },
   });
 
@@ -242,6 +242,7 @@ async function main() {
     create: {
       name: 'Consulenza Energetica',
       description: 'Servizio di consulenza per l’efficientamento',
+      amount: 1000,
     },
   });
 
@@ -251,6 +252,7 @@ async function main() {
     create: {
       name: 'Analisi Fattibilità',
       description: 'Analisi tecnica di fattibilità',
+      amount: 1500,
     },
   });
 

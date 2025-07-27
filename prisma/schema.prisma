@@ -33,6 +33,14 @@ enum PermissionAction {
   DELETE
 }
 
+// Stato di avanzamento del Work
+enum WorkStatus {
+  TO_START     // Da iniziare
+  IN_PROGRESS  // In corso
+  COMPLETED    // Concluso
+  CANCELED     // Annullato
+}
+
 // Enum per le risorse su cui agiscono i permessi
 enum PermissionResource {
   USER
@@ -163,9 +171,9 @@ model Service {
 model Work {
   id            String           @id @default(cuid())
   description   String
-  date          DateTime
   acquisitionDate DateTime? // Data di acquisizione
   completionDate  DateTime? // Data di conclusione
+  status WorkStatus @default(TO_START)
   amount        Float
   paymentStatus String?
   subject       Subject          @relation(fields: [subjectId], references: [id])
