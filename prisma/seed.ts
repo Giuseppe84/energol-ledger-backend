@@ -88,15 +88,47 @@ async function main() {
     },
   });
 
-  // Property seed
+  const subject3 = await prisma.subject.upsert({
+    where: { taxId: 'LCRGNN95E01H501F' },
+    update: {},
+    create: {
+      taxId: 'LCRGNN95E01H501F',
+      firstName: 'Gianna',
+      lastName: 'Locorotondo',
+      clientSubjects: {
+        create: [{ clientId: client1.id }],
+      },
+    },
+  });
+
+  const subject4 = await prisma.subject.upsert({
+    where: { taxId: 'MRSFRN80A01H501C' },
+    update: {},
+    create: {
+      taxId: 'MRSFRN80A01H501C',
+      firstName: 'Franco',
+      lastName: 'Maraschio',
+      clientSubjects: {
+        create: [{ clientId: client2.id }],
+      },
+    },
+  });
+
+  // Property seed - Sud Salento (Lecce)
   const propertyA = await prisma.property.upsert({
     where: { cadastralCode: 'EF789' },
     update: {},
     create: {
       cadastralCode: 'EF789',
       address: 'Via Firenze 7',
-      city: 'Firenze',
+      city: 'Tricase',
       subjectId: subjectA.id,
+      sheet: 35,
+      parcel: 128,
+      subordinates: '1,2',
+      latitude: 39.9302,
+      longitude: 18.3619,
+      location: { raw: `POINT(18.3619 39.9302)` },
     },
   });
 
@@ -106,8 +138,14 @@ async function main() {
     create: {
       cadastralCode: 'GH012',
       address: 'Via Napoli 20',
-      city: 'Napoli',
+      city: 'Gagliano del Capo',
       subjectId: subjectA.id,
+      sheet: 41,
+      parcel: 222,
+      subordinates: '3',
+      latitude: 39.8446,
+      longitude: 18.3733,
+      location: { raw: `POINT(18.3733 39.8446)` },
     },
   });
 
@@ -117,20 +155,32 @@ async function main() {
     create: {
       cadastralCode: 'IJ345',
       address: 'Via Palermo 33',
-      city: 'Palermo',
+      city: 'Morciano di Leuca',
       subjectId: subjectB.id,
+      sheet: 19,
+      parcel: 87,
+      subordinates: '5,6,7',
+      latitude: 39.8364,
+      longitude: 18.3344,
+      location: { raw: `POINT(18.3344 39.8364)` },
     },
   });
 
-  // 3. Crea alcune proprietà
+  // 3. Crea alcune proprietà - Sud Salento (Lecce)
   const property1 = await prisma.property.upsert({
     where: { cadastralCode: 'AB123' },
     update: {},
     create: {
       cadastralCode: 'AB123',
       address: 'Via Roma 1',
-      city: 'Roma',
+      city: 'Corsano',
       subjectId: subject1.id,
+      sheet: 22,
+      parcel: 59,
+      subordinates: '4',
+      latitude: 39.9198,
+      longitude: 18.3601,
+      location: { raw: `POINT(18.3601 39.9198)` },
     },
   });
 
@@ -140,8 +190,48 @@ async function main() {
     create: {
       cadastralCode: 'CD456',
       address: 'Via Milano 10',
-      city: 'Milano',
+      city: 'Tiggiano',
       subjectId: subject2.id,
+      sheet: 28,
+      parcel: 144,
+      subordinates: '2,3',
+      latitude: 39.9422,
+      longitude: 18.3587,
+      location: { raw: `POINT(18.3587 39.9422)` },
+    },
+  });
+
+  const property3 = await prisma.property.upsert({
+    where: { cadastralCode: 'KL678' },
+    update: {},
+    create: {
+      cadastralCode: 'KL678',
+      address: 'Via Lecce 15',
+      city: 'Alessano',
+      subjectId: subject3.id,
+      sheet: 26,
+      parcel: 112,
+      subordinates: '1,2,3',
+      latitude: 39.9123,
+      longitude: 18.3304,
+      location: { raw: `POINT(18.3304 39.9123)` },
+    },
+  });
+
+  const property4 = await prisma.property.upsert({
+    where: { cadastralCode: 'MN901' },
+    update: {},
+    create: {
+      cadastralCode: 'MN901',
+      address: 'Via Gallipoli 7',
+      city: 'Specchia',
+      subjectId: subject4.id,
+      sheet: 31,
+      parcel: 76,
+      subordinates: '5',
+      latitude: 39.9572,
+      longitude: 18.3067,
+      location: { raw: `POINT(18.3067 39.9572)` },
     },
   });
 
