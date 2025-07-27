@@ -209,3 +209,38 @@ export const getPropertiesBySubject = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+// Recupera le proprietà vicine a una posizione geografica (entro un certo raggio)
+export const getPropertiesByLocation = async (req: Request, res: Response) => {
+  const { latitude, longitude, radius } = req.query;
+
+  if (!latitude || !longitude || !radius) {
+    return res.status(400).json({ message: 'Missing latitude, longitude or radius parameters' });
+  }
+
+  const latNum = parseFloat(latitude as string);
+  const lonNum = parseFloat(longitude as string);
+  const radiusNum = parseFloat(radius as string);
+
+  if (isNaN(latNum) || isNaN(lonNum) || isNaN(radiusNum)) {
+    return res.status(400).json({ message: 'Invalid latitude, longitude or radius parameters' });
+  }
+
+  try {
+    const properties = await prisma.$queryRawUnsafe(`
+      SELECT p.*, 
+        ST_DistanceSphere(p.location, ST_MakePoint(${lonNum}, ${latNum})) AS distance
+      FROM "Property" p
+      WHERE ST_DWithin(
+        p.location,
+        ST_SetSRID(ST_MakePoint(${lonNum}, ${latNum}), 4326),
+        ${radiusNum}
+      )
+      ORDER BY distance ASC;
+    `);
+
+    res.status(200).json(properties);
+  } catch (error) {
+    console.error('Error fetching properties by location:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
