@@ -3,7 +3,7 @@ import prisma from '../utils/prisma';
 import { Prisma } from '@prisma/client';
 
 export const createService = async (req: Request, res: Response) => {
-  const { name, description } = req.body;
+  const { name, description, amount } = req.body;
 
   if (!name) {
     return res.status(400).json({ message: 'Service name is required.' });
@@ -14,6 +14,7 @@ export const createService = async (req: Request, res: Response) => {
       data: {
         name,
         description,
+        amount,
       },
     });
     res.status(201).json({ message: 'Service created successfully', service: newService });
@@ -83,7 +84,7 @@ export const getServiceById = async (req: Request, res: Response) => {
 
 export const updateService = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { name, description } = req.body;
+  const { name, description, amount } = req.body;
 
   try {
     const updatedService = await prisma.service.update({
@@ -91,6 +92,7 @@ export const updateService = async (req: Request, res: Response) => {
       data: {
         name,
         description,
+        amount,
         updatedAt: new Date(),
       },
     });

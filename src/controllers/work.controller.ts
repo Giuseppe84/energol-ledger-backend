@@ -21,7 +21,7 @@ export const getAllWorks = async (_req: Request, res: Response) => {
 
 // Crea un nuovo work
 export const createWork = async (req: Request, res: Response) => {
-  const { description, date, amount, clientId, propertyId, serviceId, subjectId } = req.body;
+  const { description, date, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate } = req.body;
 
   if (!description || !date || !amount || !clientId || !serviceId) {
     return res.status(400).json({ message: 'Description, date, amount, clientId, and serviceId are required.' });
@@ -53,6 +53,8 @@ export const createWork = async (req: Request, res: Response) => {
         property: propertyId ? { connect: { id: propertyId } } : undefined,
         service: { connect: { id: serviceId } },
         subject: { connect: { id: subjectId } } ,
+        acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : undefined,
+        completionDate: completionDate ? new Date(completionDate) : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -97,7 +99,7 @@ export const getWorkById = async (req: Request, res: Response) => {
 // Aggiorna un work
 export const updateWork = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { description, date, amount, clientId, propertyId, serviceId, subjectId } = req.body;
+  const { description, date, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate } = req.body;
 
   try {
     const updateData: any = {
@@ -107,6 +109,8 @@ export const updateWork = async (req: Request, res: Response) => {
     if (description !== undefined) updateData.description = description;
     if (date !== undefined) updateData.date = new Date(date);
     if (amount !== undefined) updateData.amount = Number(amount);
+    if (acquisitionDate !== undefined) updateData.acquisitionDate = new Date(acquisitionDate);
+    if (completionDate !== undefined) updateData.completionDate = new Date(completionDate);
 
     if (clientId !== undefined) {
       const clientExists = await prisma.client.findUnique({ where: { id: clientId } });
