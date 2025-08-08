@@ -19,6 +19,37 @@ export const getAllWorks = async (_req: Request, res: Response) => {
   }
 };
 
+// Recupera tutti i work non pagati (opzionalmente filtrati per clientId)
+export const getUnpaidWorks = async (req: Request, res: Response) => {
+  try {
+    const clientId = req.query.clientId as string | undefined;
+    const works = await prisma.work.findMany({
+      where: {
+        ...(clientId ? { clientId } : {}),
+        OR: [
+          { paymentStatus: { not: 'PAID' } },
+          { paymentStatus: null },
+          {
+            workPayments: {
+              none: { payment: { status: 'PAID' } }
+            }
+          }
+        ]
+      },
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true, email: true } },
+        property: { select: { id: true, address: true, city: true } },
+        service: { select: { id: true, name: true } },
+        subject: { select: { id: true, taxId: true, firstName: true, lastName: true } }
+      }
+    });
+    res.status(200).json(works);
+  } catch (error) {
+    console.error('Error fetching unpaid works:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 // Crea un nuovo work
 export const createWork = async (req: Request, res: Response) => {
   const { description, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate, status } = req.body;

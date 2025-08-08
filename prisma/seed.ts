@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, PermissionAction, PermissionResource, UserRole } from '@prisma/client';
+import { PrismaClient, PermissionAction, PermissionResource, UserRole, PaymentStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 
@@ -260,7 +260,7 @@ async function main() {
   const work1 = await prisma.work.create({
     data: {
       description: 'Installazione pannelli solari',
-      date: new Date('2025-06-01'),
+      acquisitionDate: new Date('2025-06-01'),
       amount: 5000,
       subjectId: subject1.id,
       clientId: client1.id,
@@ -272,7 +272,7 @@ async function main() {
   const work2 = await prisma.work.create({
     data: {
       description: 'Audit energetico edificio',
-      date: new Date('2025-06-15'),
+      acquisitionDate: new Date('2025-06-15'),
       amount: 2000,
       subjectId: subject2.id,
       clientId: client2.id,
@@ -287,7 +287,7 @@ async function main() {
       date: new Date('2025-06-05'),
       amount: 5000,
       isRefund: false,
-      status: 'COMPLETED',
+      status: PaymentStatus.PAID,
       method: 'Bank Transfer',
       workPayments: {
         create: [{ workId: work1.id }],
@@ -300,7 +300,7 @@ async function main() {
       date: new Date('2025-06-20'),
       amount: 1000,
       isRefund: false,
-      status: 'PARTIALLY_PAID',
+      status: PaymentStatus.PARTIALLY_PAID,
       method: 'Cash',
       workPayments: {
         create: [{ workId: work2.id }],

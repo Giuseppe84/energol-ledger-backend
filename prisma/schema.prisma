@@ -33,6 +33,14 @@ enum PermissionAction {
   DELETE
 }
 
+enum PaymentStatus {
+  PENDING         // Pagamento in attesa
+  PARTIALLY_PAID  // Pagato parzialmente
+  PAID            // Pagato completamente
+  REFUNDED        // Rimborsato
+  NO_AMOUNT       // Nessun importo previsto (ad esempio servizi gratuiti)
+}
+
 // Stato di avanzamento del Work
 enum WorkStatus {
   TO_START     // Da iniziare
@@ -120,13 +128,7 @@ model Client {
   updatedAt  DateTime   @updatedAt
 }
 
-enum PaymentStatus {
-  PENDING
-  PARTIALLY_PAID
-  PAID
-  REFUNDED // Aggiunto per chiarezza, se applicabile
-  NO_AMOUNT // Aggiunto per servizi senza importo definito
-}
+
 
 model Subject {
   id        String   @id @default(cuid())
@@ -175,7 +177,7 @@ model Work {
   completionDate  DateTime? // Data di conclusione
   status WorkStatus @default(TO_START)
   amount        Float
-  paymentStatus String?
+  paymentStatus PaymentStatus?
   subject       Subject          @relation(fields: [subjectId], references: [id])
   subjectId     String
   client        Client           @relation(fields: [clientId], references: [id])
@@ -198,7 +200,7 @@ model Payment {
   date          DateTime
   amount        Float
   isRefund      Boolean
-  status        String
+  status        PaymentStatus
   method        String // e.g., "Bank Transfer", "Cash", "Credit Card"
   // Relazione molti-a-molti con Work tramite WorkPayment
   workPayments  WorkPayment[]
