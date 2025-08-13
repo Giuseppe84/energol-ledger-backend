@@ -48,6 +48,12 @@ enum WorkStatus {
   COMPLETED    // Concluso
   CANCELED     // Annullato
 }
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CREDIT_CARD
+}
+
 
 // Enum per le risorse su cui agiscono i permessi
 enum PermissionResource {
@@ -201,7 +207,7 @@ model Payment {
   amount        Float
   isRefund      Boolean
   status        PaymentStatus
-  method        String // e.g., "Bank Transfer", "Cash", "Credit Card"
+  method        PaymentMethod 
   // Relazione molti-a-molti con Work tramite WorkPayment
   workPayments  WorkPayment[]
   createdAt     DateTime      @default(now())

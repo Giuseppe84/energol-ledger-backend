@@ -1,5 +1,5 @@
 // prisma/seed.ts
-import { PrismaClient, PermissionAction, PermissionResource, UserRole, PaymentStatus } from '@prisma/client';
+import { PrismaClient, PermissionAction, PermissionResource, UserRole, PaymentStatus, PaymentMethod } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 
@@ -288,7 +288,7 @@ async function main() {
       amount: 5000,
       isRefund: false,
       status: PaymentStatus.PAID,
-      method: 'Bank Transfer',
+      method: PaymentMethod.BANK_TRANSFER,
       workPayments: {
         create: [{ workId: work1.id }],
       },
@@ -301,7 +301,7 @@ async function main() {
       amount: 1000,
       isRefund: false,
       status: PaymentStatus.PARTIALLY_PAID,
-      method: 'Cash',
+      method: PaymentMethod.CASH,
       workPayments: {
         create: [{ workId: work2.id }],
       },

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
+import { PaymentStatus } from '@prisma/client';
 
 // Recupera tutti i work
 export const getAllWorks = async (_req: Request, res: Response) => {
@@ -23,18 +24,18 @@ export const getAllWorks = async (_req: Request, res: Response) => {
 export const getUnpaidWorks = async (req: Request, res: Response) => {
   try {
     const clientId = req.query.clientId as string | undefined;
+    console.log('Fetching unpaid works for clientId:', clientId);
     const works = await prisma.work.findMany({
+
       where: {
         ...(clientId ? { clientId } : {}),
         OR: [
-          { paymentStatus: { not: 'PAID' } },
-          { paymentStatus: null },
-          {
-            workPayments: {
-              none: { payment: { status: 'PAID' } }
-            }
-          }
+          { paymentStatus: { not: PaymentStatus.PAID } },
+          { paymentStatus: null }
         ]
+
+
+
       },
       include: {
         client: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -43,6 +44,7 @@ export const getUnpaidWorks = async (req: Request, res: Response) => {
         subject: { select: { id: true, taxId: true, firstName: true, lastName: true } }
       }
     });
+    console.log('Fetching unpaid works for clientId:', works);
     res.status(200).json(works);
   } catch (error) {
     console.error('Error fetching unpaid works:', error);
@@ -82,7 +84,7 @@ export const createWork = async (req: Request, res: Response) => {
         client: { connect: { id: clientId } },
         property: propertyId ? { connect: { id: propertyId } } : undefined,
         service: { connect: { id: serviceId } },
-        subject: { connect: { id: subjectId } } ,
+        subject: { connect: { id: subjectId } },
         acquisitionDate: acquisitionDate ? new Date(acquisitionDate) : undefined,
         completionDate: completionDate ? new Date(completionDate) : undefined,
         status: status ?? 'TO_START',
@@ -130,7 +132,7 @@ export const getWorkById = async (req: Request, res: Response) => {
 // Aggiorna un work
 export const updateWork = async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { description, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate, status } = req.body;
+  const { description, amount, clientId, propertyId, serviceId, subjectId, acquisitionDate, completionDate, status, paymenStatus } = req.body;
 
   try {
     const updateData: any = {

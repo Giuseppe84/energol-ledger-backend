@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
 import { calculateAndSetWorkPaymentStatus } from '../utils/paymentWorkStatusCalculator';
+import { PaymentStatus , PaymentMethod} from '@prisma/client';
 
 
 export const createPayment = async (req: Request, res: Response) => {
@@ -68,13 +69,13 @@ export const getAllPayments = async (req: Request, res: Response) => {
   const { status, method, isRefund } = req.query;
   // Oggetto di filtro senza tipizzazione Prisma esplicita
   const where: {
-    status?: string;
-    method?: string;
+    status?: PaymentStatus;
+    method?: PaymentMethod;
     isRefund?: boolean;
   } = {};
 
-  if (status) where.status = String(status);
-  if (method) where.method = String(method);
+  if (status) where.status = status as PaymentStatus;
+  if (method) where.method = method as PaymentMethod;
   if (typeof isRefund !== 'undefined') where.isRefund = String(isRefund).toLowerCase() === 'true';
 
   try {
@@ -142,8 +143,8 @@ export const updatePayment = async (req: Request, res: Response) => {
       date?: Date;
       amount?: number;
       isRefund?: boolean;
-      status?: string;
-      method?: string;
+      status?: PaymentStatus;
+      method?: PaymentMethod;
       updatedAt?: Date;
       workPayments?: any;
     } = {
@@ -153,8 +154,8 @@ export const updatePayment = async (req: Request, res: Response) => {
     if (date !== undefined) updateData.date = new Date(date);
     if (amount !== undefined) updateData.amount = parseFloat(amount);
     if (isRefund !== undefined) updateData.isRefund = Boolean(isRefund);
-    if (status !== undefined) updateData.status = status;
-    if (method !== undefined) updateData.method = method;
+    if (status !== undefined) updateData.status = status as PaymentStatus;
+    if (method !== undefined) updateData.method = method as PaymentMethod;
 
     if (workIds !== undefined) {
       const currentWorkIds = currentPayment.workPayments.map((wp:any) => wp.workId);
